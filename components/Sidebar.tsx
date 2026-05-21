@@ -15,7 +15,7 @@ import { createClient } from '@/lib/supabase-client';
 const items = [
   { href: '/dashboard', label: 'Dashboard', icono: '▦', proximo: false },
   { href: '/dashboard/mapa', label: 'Mapa en vivo', icono: '◎', proximo: false },
-  { href: '/dashboard/vehiculos', label: 'Vehículos', icono: '⊞', proximo: true },
+  { href: '/dashboard/vehiculos', label: 'Vehículos', icono: '⊞', proximo: false },
   { href: '/dashboard/historial', label: 'Historial', icono: '↻', proximo: true },
   { href: '/dashboard/dispositivos', label: 'Dispositivos', icono: '⊡', proximo: true },
   { href: '/dashboard/reportes', label: 'Reportes', icono: '◈', proximo: true },

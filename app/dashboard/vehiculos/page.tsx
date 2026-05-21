@@ -1,5 +1,15 @@
 'use client';
 
+// ============================================================================
+// SECCIÓN VEHÍCULOS · ABM completo (Alta, Baja, Modificación)
+// ----------------------------------------------------------------------------
+// Lista los vehículos de la empresa y permite crear, editar y eliminar.
+// En el formulario también se puede asignar/cambiar el dispositivo rastreador
+// (celular o GPS) de cada vehículo.
+//
+// Todo respeta la seguridad multiempresa: cada empresa ve solo SUS vehículos.
+// ============================================================================
+
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 
@@ -23,6 +33,7 @@ type Dispositivo = {
 
 const TIPOS_VEHICULO = ['auto', 'camioneta', 'camion', 'moto'];
 
+// Formulario vacío para "nuevo vehículo"
 const VEHICULO_VACIO = {
   id: '',
   nombre: '',
@@ -42,11 +53,13 @@ export default function PaginaVehiculos() {
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState('');
 
+  // Estado del modal (formulario)
   const [modalAbierto, setModalAbierto] = useState(false);
   const [form, setForm] = useState<typeof VEHICULO_VACIO>(VEHICULO_VACIO);
-  const [dispositivoElegido, setDispositivoElegido] = useState<string>('');
+  const [dispositivoElegido, setDispositivoElegido] = useState<string>(''); // id del dispositivo asignado
   const [guardando, setGuardando] = useState(false);
 
+  // Cargar datos al inicio
   useEffect(() => {
     cargarTodo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,12 +76,14 @@ export default function PaginaVehiculos() {
     setCargando(false);
   }
 
+  // Abrir modal para crear uno nuevo
   function abrirNuevo() {
     setForm(VEHICULO_VACIO);
     setDispositivoElegido('');
     setModalAbierto(true);
   }
 
+  // Abrir modal para editar uno existente
   function abrirEditar(v: Vehiculo) {
     setForm({
       id: v.id,
@@ -80,11 +95,13 @@ export default function PaginaVehiculos() {
       color: v.color ?? '',
       activo: v.activo,
     });
+    // Buscamos si ya tiene un dispositivo asignado
     const disp = dispositivos.find((d) => d.vehicle_id === v.id);
     setDispositivoElegido(disp?.id ?? '');
     setModalAbierto(true);
   }
 
+  // Guardar (crear o actualizar)
   async function guardar() {
     if (!form.nombre.trim()) {
       alert('Poné al menos un nombre para el vehículo.');
@@ -95,6 +112,7 @@ export default function PaginaVehiculos() {
     let vehicleId = form.id;
 
     if (form.id) {
+      // ACTUALIZAR vehículo existente
       await supabase
         .from('vehicles')
         .update({
@@ -108,6 +126,7 @@ export default function PaginaVehiculos() {
         })
         .eq('id', form.id);
     } else {
+      // CREAR vehículo nuevo. Necesitamos el company_id del usuario.
       const { data: perfil } = await supabase
         .from('users')
         .select('company_id')
@@ -132,12 +151,15 @@ export default function PaginaVehiculos() {
       vehicleId = nuevo?.id ?? '';
     }
 
+    // Manejar la asignación del dispositivo
     if (vehicleId) {
+      // Primero, soltamos cualquier dispositivo que estuviera en este vehículo
       await supabase
         .from('tracker_devices')
         .update({ vehicle_id: null })
         .eq('vehicle_id', vehicleId);
 
+      // Si se eligió uno, lo asignamos
       if (dispositivoElegido) {
         await supabase
           .from('tracker_devices')
@@ -151,12 +173,14 @@ export default function PaginaVehiculos() {
     cargarTodo();
   }
 
+  // Eliminar
   async function eliminar(v: Vehiculo) {
     if (!confirm(`¿Seguro que querés eliminar "${v.nombre}"?`)) return;
     await supabase.from('vehicles').delete().eq('id', v.id);
     cargarTodo();
   }
 
+  // Filtrado por búsqueda
   const vehiculosFiltrados = vehiculos.filter((v) => {
     const t = busqueda.toLowerCase();
     return (
@@ -166,10 +190,13 @@ export default function PaginaVehiculos() {
     );
   });
 
+  // Dispositivos disponibles para asignar:
+  // los que no tienen vehículo, MÁS el que ya está asignado a este vehículo
   const dispositivosDisponibles = dispositivos.filter(
     (d) => !d.vehicle_id || d.id === dispositivoElegido
   );
 
+  // Nombre del dispositivo de un vehículo (para mostrar en la lista)
   function dispositivoDe(vehicleId: string): string {
     const d = dispositivos.find((x) => x.vehicle_id === vehicleId);
     return d ? d.nombre : '—';
@@ -177,6 +204,7 @@ export default function PaginaVehiculos() {
 
   return (
     <div>
+      {/* Encabezado */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '26px', fontWeight: 700, letterSpacing: '-0.5px' }}>Vehículos</h1>
@@ -187,6 +215,7 @@ export default function PaginaVehiculos() {
         <button onClick={abrirNuevo} style={s.botonPrimario}>+ Nuevo vehículo</button>
       </div>
 
+      {/* Buscador */}
       <input
         value={busqueda}
         onChange={(e) => setBusqueda(e.target.value)}
@@ -194,6 +223,7 @@ export default function PaginaVehiculos() {
         style={s.buscador}
       />
 
+      {/* Lista */}
       {cargando ? (
         <div style={{ color: 'var(--texto-suave)', padding: '40px', textAlign: 'center' }}>Cargando...</div>
       ) : vehiculosFiltrados.length === 0 ? (
@@ -240,6 +270,7 @@ export default function PaginaVehiculos() {
         </div>
       )}
 
+      {/* MODAL del formulario */}
       {modalAbierto && (
         <div style={s.overlay} onClick={() => setModalAbierto(false)}>
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
@@ -261,7 +292,7 @@ export default function PaginaVehiculos() {
                 <label style={s.label}>Tipo</label>
                 <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} style={s.input}>
                   {TIPOS_VEHICULO.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t} style={{ textTransform: 'capitalize' }}>{t}</option>
                   ))}
                 </select>
               </div>
@@ -280,6 +311,7 @@ export default function PaginaVehiculos() {
               </div>
             </div>
 
+            {/* Asignación de dispositivo */}
             <label style={s.label}>Dispositivo de rastreo</label>
             <select value={dispositivoElegido} onChange={(e) => setDispositivoElegido(e.target.value)} style={s.input}>
               <option value="">— Sin dispositivo —</option>
@@ -291,11 +323,13 @@ export default function PaginaVehiculos() {
               Solo aparecen los dispositivos libres (sin vehículo asignado).
             </div>
 
+            {/* Activo */}
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px', fontSize: '14px', cursor: 'pointer' }}>
               <input type="checkbox" checked={form.activo} onChange={(e) => setForm({ ...form, activo: e.target.checked })} />
               Vehículo activo
             </label>
 
+            {/* Botones */}
             <div style={{ display: 'flex', gap: '10px', marginTop: '24px', justifyContent: 'flex-end' }}>
               <button onClick={() => setModalAbierto(false)} style={s.botonChico}>Cancelar</button>
               <button onClick={guardar} disabled={guardando} style={{ ...s.botonPrimario, opacity: guardando ? 0.6 : 1 }}>
