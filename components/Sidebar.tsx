@@ -11,7 +11,7 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 
-// Los ítems del menú. "proximo: true" = todavía no construido (Bloques 3+)
+// Los ítems del menú comunes a todos
 const items = [
   { href: '/dashboard', label: 'Dashboard', icono: '▦', proximo: false },
   { href: '/dashboard/mapa', label: 'Mapa en vivo', icono: '◎', proximo: false },
@@ -21,10 +21,16 @@ const items = [
   { href: '/dashboard/reportes', label: 'Reportes', icono: '◈', proximo: false },
 ];
 
-export default function Sidebar({ empresa }: { empresa: string }) {
+// Ítem extra que SOLO ve el super_admin
+const itemSuperAdmin = { href: '/dashboard/clientes', label: 'Clientes', icono: '🏢', proximo: false };
+
+export default function Sidebar({ empresa, rol }: { empresa: string; rol?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
+
+  // Si es super_admin, le sumamos el ítem Clientes al final
+  const itemsVisibles = rol === 'super_admin' ? [...items, itemSuperAdmin] : items;
 
   async function salir() {
     await supabase.auth.signOut();
@@ -73,7 +79,7 @@ export default function Sidebar({ empresa }: { empresa: string }) {
 
       {/* Navegación */}
       <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-        {items.map((item) => {
+        {itemsVisibles.map((item) => {
           const activo = pathname === item.href;
           return (
             <button
