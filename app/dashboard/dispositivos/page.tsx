@@ -52,6 +52,12 @@ export default function PaginaDispositivos() {
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState('');
 
+  // Control de límite según el plan de la empresa
+  const [limiteDispositivos, setLimiteDispositivos] = useState<number>(999);
+  const [esSuperAdmin, setEsSuperAdmin] = useState(false);
+  const [planActual, setPlanActual] = useState<string>('');
+  const [avisoLimite, setAvisoLimite] = useState<string | null>(null);
+
   const [modalAbierto, setModalAbierto] = useState(false);
   const [form, setForm] = useState<typeof DISPOSITIVO_VACIO>(DISPOSITIVO_VACIO);
   const [guardando, setGuardando] = useState(false);
@@ -69,10 +75,43 @@ export default function PaginaDispositivos() {
     ]);
     setDispositivos(disps ?? []);
     setVehiculos(vehs ?? []);
+
+    // Averiguamos el rol y el límite del plan de la empresa
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: perfil } = await supabase
+        .from('users')
+        .select('rol, company_id')
+        .eq('id', user.id)
+        .single();
+
+      const superAdmin = perfil?.rol === 'super_admin';
+      setEsSuperAdmin(superAdmin);
+
+      // El super_admin no tiene límite; los admins de empresa sí
+      if (!superAdmin && perfil?.company_id) {
+        const { data: empresa } = await supabase
+          .from('companies')
+          .select('plan, limite_dispositivos')
+          .eq('id', perfil.company_id)
+          .single();
+        setPlanActual(empresa?.plan ?? '');
+        setLimiteDispositivos(empresa?.limite_dispositivos ?? 5);
+      }
+    }
+
     setCargando(false);
   }
 
   function abrirNuevo() {
+    // Control de límite del plan (el super_admin no tiene límite)
+    if (!esSuperAdmin && dispositivos.length >= limiteDispositivos) {
+      setAvisoLimite(
+        `Llegaste al límite de tu plan${planActual ? ` (${planActual})` : ''}: ${limiteDispositivos} dispositivos. ` +
+        `Para sumar más, mejorá tu plan.`
+      );
+      return;
+    }
     setForm(DISPOSITIVO_VACIO);
     setModalAbierto(true);
   }
@@ -157,8 +196,32 @@ export default function PaginaDispositivos() {
             Los rastreadores (celulares y GPS) que reportan posición
           </p>
         </div>
-        <button onClick={abrirNuevo} style={s.botonPrimario}>+ Nuevo dispositivo</button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+          <button onClick={abrirNuevo} style={s.botonPrimario}>+ Nuevo dispositivo</button>
+          {/* Indicador de uso del plan (solo para clientes, no super_admin) */}
+          {!esSuperAdmin && !cargando && (
+            <span style={{ fontSize: '12px', color: dispositivos.length >= limiteDispositivos ? 'var(--rojo-offline)' : 'var(--texto-suave)' }}>
+              {dispositivos.length} de {limiteDispositivos} dispositivos
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Cartel de aviso cuando se llega al límite */}
+      {avisoLimite && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+          background: 'rgba(255,77,94,0.1)', border: '1px solid rgba(255,77,94,0.3)',
+          borderRadius: '12px', padding: '14px 18px', marginBottom: '18px', flexWrap: 'wrap',
+        }}>
+          <div style={{ fontSize: '14px', color: 'var(--texto)' }}>
+            ⚠️ {avisoLimite}
+          </div>
+          <button onClick={() => setAvisoLimite(null)} style={{ ...s.botonChico, whiteSpace: 'nowrap' }}>
+            Entendido
+          </button>
+        </div>
+      )}
 
       <input
         value={busqueda}
