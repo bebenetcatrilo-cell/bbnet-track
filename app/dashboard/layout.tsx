@@ -26,18 +26,46 @@ export default async function DashboardLayout({
 
   if (!user) redirect('/login');
 
-  // Traemos el perfil del usuario (nombre, rol) y el nombre de su empresa
+  // Traemos el perfil del usuario (nombre, rol) y los datos de su empresa
   const { data: perfil } = await supabase
     .from('users')
-    .select('nombre, rol, companies(nombre)')
+    .select('nombre, rol, companies(nombre, activo)')
     .eq('id', user.id)
     .single();
 
   const nombreUsuario = perfil?.nombre ?? 'Usuario';
   const rol = perfil?.rol ?? 'operario';
-  // companies puede venir como objeto; tomamos el nombre con cuidado
-  const empresa =
-    (perfil?.companies as { nombre?: string } | null)?.nombre ?? 'Mi empresa';
+  // companies puede venir como objeto; tomamos los datos con cuidado
+  const empresaData = perfil?.companies as { nombre?: string; activo?: boolean } | null;
+  const empresa = empresaData?.nombre ?? 'Mi empresa';
+
+  // CORTE DE SERVICIO: si la empresa está suspendida y NO es super_admin,
+  // no puede entrar al sistema (mostramos pantalla de cuenta suspendida).
+  const empresaSuspendida = empresaData?.activo === false && rol !== 'super_admin';
+
+  if (empresaSuspendida) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '24px', position: 'relative', zIndex: 1,
+      }}>
+        <div style={{
+          maxWidth: '420px', textAlign: 'center', background: 'var(--gris-oscuro)',
+          border: '1px solid var(--gris-borde)', borderRadius: '16px', padding: '40px 32px',
+        }}>
+          <div style={{ fontSize: '46px', marginBottom: '16px' }}>🔒</div>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '10px' }}>Cuenta suspendida</h1>
+          <p style={{ fontSize: '14px', color: 'var(--texto-suave)', lineHeight: 1.6 }}>
+            El acceso a tu cuenta está temporalmente suspendido. Por favor, contactá a
+            tu proveedor del servicio para reactivarla.
+          </p>
+          <p style={{ fontSize: '13px', color: 'var(--texto-tenue)', marginTop: '20px' }}>
+            BBNet Track
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>

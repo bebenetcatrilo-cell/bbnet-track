@@ -59,6 +59,11 @@ export default function PaginaClientes() {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
 
+  // Modal de edición de empresa existente
+  const [modalEditar, setModalEditar] = useState(false);
+  const [empresaEditar, setEmpresaEditar] = useState<Empresa | null>(null);
+  const [guardandoEdit, setGuardandoEdit] = useState(false);
+
   // Verificar que sea super_admin
   useEffect(() => {
     async function verificar() {
@@ -141,6 +146,51 @@ export default function PaginaClientes() {
     setTimeout(() => setModalAbierto(false), 1200);
   }
 
+  // Abrir el modal de edición con los datos de la empresa
+  function abrirEditar(e: Empresa) {
+    setEmpresaEditar({ ...e });
+    setModalEditar(true);
+  }
+
+  // Guardar los cambios de la empresa
+  async function guardarEdicion() {
+    if (!empresaEditar) return;
+    if (!empresaEditar.nombre.trim()) {
+      alert('El nombre no puede quedar vacío.');
+      return;
+    }
+    setGuardandoEdit(true);
+
+    // Si cambió el plan, traemos el límite de ese plan para actualizarlo también
+    const planElegido = planes.find((p) => p.codigo === empresaEditar.plan);
+
+    await supabase
+      .from('companies')
+      .update({
+        nombre: empresaEditar.nombre.trim(),
+        telefono: empresaEditar.telefono?.trim() || null,
+        email: empresaEditar.email?.trim() || null,
+        plan: empresaEditar.plan,
+        limite_dispositivos: planElegido?.limite_dispositivos ?? empresaEditar.limite_dispositivos,
+      })
+      .eq('id', empresaEditar.id);
+
+    setGuardandoEdit(false);
+    setModalEditar(false);
+    cargarEmpresas();
+  }
+
+  // Activar / desactivar un cliente (le corta o reactiva el servicio)
+  async function alternarActivo(e: Empresa) {
+    const nuevoEstado = !e.activo;
+    const accion = nuevoEstado ? 'reactivar' : 'suspender';
+    if (!confirm(`¿Seguro que querés ${accion} a "${e.nombre}"?` +
+      (nuevoEstado ? '' : '\n\nEl cliente NO va a poder entrar al sistema hasta que lo reactives.'))) return;
+
+    await supabase.from('companies').update({ activo: nuevoEstado }).eq('id', e.id);
+    cargarEmpresas();
+  }
+
   // --- Pantallas según el estado ---
 
   if (esSuperAdmin === false) {
@@ -200,13 +250,66 @@ export default function PaginaClientes() {
                 {e.telefono && <div style={{ marginTop: '4px' }}>📞 {e.telefono}</div>}
                 <div style={{ marginTop: '4px' }}>
                   Estado: <b style={{ color: e.activo ? 'var(--verde-online)' : 'var(--rojo-offline)' }}>
-                    {e.activo ? 'Activo' : 'Inactivo'}
+                    {e.activo ? 'Activo' : 'Suspendido'}
                   </b>
                 </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                <button onClick={() => abrirEditar(e)} style={s.botonChico}>Editar</button>
+                <button
+                  onClick={() => alternarActivo(e)}
+                  style={{
+                    ...s.botonChico,
+                    color: e.activo ? 'var(--rojo-offline)' : 'var(--verde-online)',
+                    flex: 1,
+                  }}
+                >
+                  {e.activo ? 'Suspender' : 'Reactivar'}
+                </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* VENTANA FLOTANTE: editar cliente existente */}
+      {modalEditar && empresaEditar && (
+        <VentanaFlotante titulo={`Editar: ${empresaEditar.nombre}`} onCerrar={() => setModalEditar(false)}>
+          <label style={s.label}>Nombre de la empresa *</label>
+          <input value={empresaEditar.nombre} onChange={(ev) => setEmpresaEditar({ ...empresaEditar, nombre: ev.target.value })}
+            style={s.input} autoFocus />
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={s.label}>Teléfono</label>
+              <input value={empresaEditar.telefono ?? ''} onChange={(ev) => setEmpresaEditar({ ...empresaEditar, telefono: ev.target.value })}
+                style={s.input} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={s.label}>Email</label>
+              <input value={empresaEditar.email ?? ''} onChange={(ev) => setEmpresaEditar({ ...empresaEditar, email: ev.target.value })}
+                style={s.input} />
+            </div>
+          </div>
+
+          <label style={s.label}>Plan</label>
+          <select value={empresaEditar.plan} onChange={(ev) => setEmpresaEditar({ ...empresaEditar, plan: ev.target.value })} style={s.input}>
+            {planes.length === 0 && <option value={empresaEditar.plan}>{empresaEditar.plan}</option>}
+            {planes.map((p) => <option key={p.codigo} value={p.codigo}>{p.nombre}</option>)}
+          </select>
+          <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '4px' }}>
+            Al cambiar el plan, el límite de dispositivos se ajusta solo.
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '24px', justifyContent: 'flex-end' }}>
+            <button onClick={() => setModalEditar(false)} style={s.botonChico}>Cancelar</button>
+            <button onClick={guardarEdicion} disabled={guardandoEdit} style={{ ...s.botonPrimario, opacity: guardandoEdit ? 0.6 : 1 }}>
+              {guardandoEdit ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+          </div>
+        </VentanaFlotante>
       )}
 
       {/* VENTANA FLOTANTE: formulario de nuevo cliente */}
