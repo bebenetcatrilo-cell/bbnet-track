@@ -46,6 +46,7 @@ export default async function DashboardLayout({
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Header superior */}
         <header
+          className="dash-header"
           style={{
             height: '64px',
             borderBottom: '1px solid var(--gris-borde)',
@@ -83,7 +84,7 @@ export default async function DashboardLayout({
         </header>
 
         {/* Contenido de cada página */}
-        <main style={{ flex: 1, padding: '28px' }}>{children}</main>
+        <main className="dash-main" style={{ flex: 1, padding: '28px' }}>{children}</main>
       </div>
     </div>
   );

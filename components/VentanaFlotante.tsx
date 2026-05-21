@@ -3,19 +3,19 @@
 // ============================================================================
 // VENTANA FLOTANTE · componente reutilizable para todo el sistema
 // ----------------------------------------------------------------------------
-// Una ventana que:
-//   - Se abre flotando en el centro
-//   - Se puede ARRASTRAR agarrándola de la barra de título
-//   - NO se cierra al tocar afuera (solo con la X o un botón Cancelar)
+// Se comporta distinto según el dispositivo:
 //
-// Es el equivalente al "win-float" del Polirrubro. Cualquier sección del
-// sistema puede usar esta ventana para sus formularios. Así no repetimos
-// código y todas las ventanas se comportan igual.
+//   EN COMPUTADORA:
+//     - Flota en el centro
+//     - Se puede ARRASTRAR agarrándola de la barra de título
 //
-// CÓMO SE USA (ejemplo):
-//   <VentanaFlotante titulo="Nuevo vehículo" onCerrar={() => setAbierto(false)}>
-//     ...contenido del formulario...
-//   </VentanaFlotante>
+//   EN CELULAR:
+//     - Se encuadra sola, centrada y grande (casi toda la pantalla, con bordes)
+//     - NO se arrastra (no tiene sentido en un celular)
+//
+// En ambos casos: NO se cierra al tocar afuera (solo con la X o Cancelar).
+//
+// La ventana detecta el tamaño de pantalla sola. El usuario no hace nada.
 // ============================================================================
 
 import { useEffect, useRef, useState } from 'react';
@@ -24,24 +24,37 @@ type Props = {
   titulo: string;
   onCerrar: () => void;
   children: React.ReactNode;
-  ancho?: number; // ancho en píxeles (opcional, por defecto 480)
+  ancho?: number; // ancho en píxeles en compu (opcional, por defecto 480)
 };
 
+// A partir de qué ancho consideramos "celular"
+const ANCHO_CELULAR = 768;
+
 export default function VentanaFlotante({ titulo, onCerrar, children, ancho = 480 }: Props) {
-  // Posición de la ventana (arranca centrada-ish, después el usuario la mueve)
+  const [esCelular, setEsCelular] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [iniciada, setIniciada] = useState(false);
   const ventanaRef = useRef<HTMLDivElement>(null);
 
-  // Datos del arrastre
   const arrastreRef = useRef<{ arrastrando: boolean; offsetX: number; offsetY: number }>({
     arrastrando: false,
     offsetX: 0,
     offsetY: 0,
   });
 
-  // Al abrir, centramos la ventana en la pantalla
+  // Detectar si es celular (y actualizar si gira la pantalla)
   useEffect(() => {
+    function chequear() {
+      setEsCelular(window.innerWidth <= ANCHO_CELULAR);
+    }
+    chequear();
+    window.addEventListener('resize', chequear);
+    return () => window.removeEventListener('resize', chequear);
+  }, []);
+
+  // En compu: centrar la ventana al abrir
+  useEffect(() => {
+    if (esCelular) { setIniciada(true); return; }
     const w = ventanaRef.current?.offsetWidth ?? ancho;
     const h = ventanaRef.current?.offsetHeight ?? 400;
     setPos({
@@ -49,10 +62,10 @@ export default function VentanaFlotante({ titulo, onCerrar, children, ancho = 48
       y: Math.max(20, (window.innerHeight - h) / 2.5),
     });
     setIniciada(true);
-  }, [ancho]);
+  }, [ancho, esCelular]);
 
-  // Empezar a arrastrar (cuando agarrás la barra de título)
   function alAgarrar(e: React.MouseEvent) {
+    if (esCelular) return; // en celular no se arrastra
     arrastreRef.current = {
       arrastrando: true,
       offsetX: e.clientX - pos.x,
@@ -60,7 +73,6 @@ export default function VentanaFlotante({ titulo, onCerrar, children, ancho = 48
     };
   }
 
-  // Mientras movés el mouse, movemos la ventana
   useEffect(() => {
     function alMover(e: MouseEvent) {
       if (!arrastreRef.current.arrastrando) return;
@@ -80,70 +92,96 @@ export default function VentanaFlotante({ titulo, onCerrar, children, ancho = 48
     };
   }, []);
 
-  return (
-    <div
-      ref={ventanaRef}
-      style={{
+  // --- Estilos según dispositivo ---
+  const estiloVentana: React.CSSProperties = esCelular
+    ? {
+        // CELULAR: encuadrada, centrada, grande con bordes
+        position: 'fixed',
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 'calc(100vw - 28px)',
+        maxWidth: '440px',
+        maxHeight: '88vh',
+      }
+    : {
+        // COMPU: flotante, en la posición arrastrada
         position: 'fixed',
         left: pos.x,
         top: pos.y,
         width: `${ancho}px`,
         maxWidth: 'calc(100vw - 40px)',
         maxHeight: '85vh',
-        background: 'var(--gris-oscuro)',
-        border: '1px solid var(--gris-borde)',
-        borderRadius: '16px',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
-        zIndex: 2000,
-        display: 'flex',
-        flexDirection: 'column',
-        opacity: iniciada ? 1 : 0, // evita el "salto" al centrar
-        transition: 'opacity 0.12s',
-      }}
-    >
-      {/* Barra de título (de acá se arrastra) */}
+      };
+
+  return (
+    <>
+      {/* Fondo oscuro detrás (ayuda a enfocar la ventana, sobre todo en celular).
+          Tocarlo NO cierra la ventana (a propósito). */}
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1999 }} />
+
       <div
-        onMouseDown={alAgarrar}
+        ref={ventanaRef}
         style={{
+          ...estiloVentana,
+          background: 'var(--gris-oscuro)',
+          border: '1px solid var(--gris-borde)',
+          borderRadius: '16px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+          zIndex: 2000,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '14px 18px',
-          borderBottom: '1px solid var(--gris-borde)',
-          cursor: 'move', // el cursor indica que se puede mover
-          userSelect: 'none',
+          flexDirection: 'column',
+          opacity: iniciada ? 1 : 0,
+          transition: 'opacity 0.12s',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Iconito de "agarre" para que se note que se mueve */}
-          <span style={{ color: 'var(--texto-tenue)', fontSize: '16px', letterSpacing: '-2px' }}>⠿</span>
-          <span style={{ fontSize: '17px', fontWeight: 700 }}>{titulo}</span>
-        </div>
-        <button
-          onClick={onCerrar}
+        {/* Barra de título (en compu, de acá se arrastra) */}
+        <div
+          onMouseDown={alAgarrar}
           style={{
-            background: 'var(--gris-medio)',
-            border: 'none',
-            borderRadius: '8px',
-            width: '30px',
-            height: '30px',
-            color: 'var(--texto-suave)',
-            fontSize: '18px',
-            lineHeight: 1,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 18px',
+            borderBottom: '1px solid var(--gris-borde)',
+            cursor: esCelular ? 'default' : 'move',
+            userSelect: 'none',
           }}
-          title="Cerrar"
         >
-          ×
-        </button>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* El iconito de agarre solo en compu (en celular no se arrastra) */}
+            {!esCelular && (
+              <span style={{ color: 'var(--texto-tenue)', fontSize: '16px', letterSpacing: '-2px' }}>⠿</span>
+            )}
+            <span style={{ fontSize: '17px', fontWeight: 700 }}>{titulo}</span>
+          </div>
+          <button
+            onClick={onCerrar}
+            style={{
+              background: 'var(--gris-medio)',
+              border: 'none',
+              borderRadius: '8px',
+              width: '32px',
+              height: '32px',
+              color: 'var(--texto-suave)',
+              fontSize: '18px',
+              lineHeight: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+            title="Cerrar"
+          >
+            ×
+          </button>
+        </div>
 
-      {/* Contenido (con scroll si es largo) */}
-      <div style={{ padding: '20px 22px', overflowY: 'auto' }}>
-        {children}
+        {/* Contenido (con scroll si es largo) */}
+        <div style={{ padding: '20px 22px', overflowY: 'auto' }}>
+          {children}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

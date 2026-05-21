@@ -74,3 +74,22 @@ input { font-family: inherit; }
   background: #fff;
   border-radius: 10px;
 }
+
+/* ============================================================================
+   RESPONSIVE · ajustes para celular (pantallas chicas)
+   ============================================================================ */
+@media (max-width: 768px) {
+  /* El header deja lugar a la izquierda para el botón hamburguesa (☰) */
+  .dash-header {
+    padding-left: 72px !important;
+    padding-right: 16px !important;
+  }
+  /* El contenido de las páginas con menos padding para aprovechar el ancho */
+  .dash-main {
+    padding: 16px !important;
+  }
+  /* Las tablas anchas pueden scrollear de costado sin romper el layout */
+  table {
+    min-width: 480px;
+  }
+}
