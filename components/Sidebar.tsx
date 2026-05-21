@@ -21,16 +21,19 @@ const items = [
   { href: '/dashboard/reportes', label: 'Reportes', icono: '◈', proximo: false },
 ];
 
-// Ítem extra que SOLO ve el super_admin
-const itemSuperAdmin = { href: '/dashboard/clientes', label: 'Clientes', icono: '🏢', proximo: false };
+// Ítems extra que SOLO ve el super_admin
+const itemsSuperAdmin = [
+  { href: '/dashboard/clientes', label: 'Clientes', icono: '🏢', proximo: false },
+  { href: '/dashboard/planes', label: 'Planes', icono: '💳', proximo: false },
+];
 
 export default function Sidebar({ empresa, rol }: { empresa: string; rol?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
 
-  // Si es super_admin, le sumamos el ítem Clientes al final
-  const itemsVisibles = rol === 'super_admin' ? [...items, itemSuperAdmin] : items;
+  // Si es super_admin, le sumamos los ítems extra al final
+  const itemsVisibles = rol === 'super_admin' ? [...items, ...itemsSuperAdmin] : items;
 
   async function salir() {
     await supabase.auth.signOut();

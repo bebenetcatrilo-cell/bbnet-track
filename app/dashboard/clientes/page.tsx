@@ -27,7 +27,11 @@ type Empresa = {
   created_at: string;
 };
 
-const PLANES = ['trial', 'basico', 'pro'];
+type Plan = {
+  codigo: string;
+  nombre: string;
+  limite_dispositivos: number;
+};
 
 const FORM_VACIO = {
   empresa_nombre: '',
@@ -47,6 +51,7 @@ export default function PaginaClientes() {
 
   const [esSuperAdmin, setEsSuperAdmin] = useState<boolean | null>(null);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [planes, setPlanes] = useState<Plan[]>([]);
   const [cargando, setCargando] = useState(true);
 
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -75,11 +80,12 @@ export default function PaginaClientes() {
 
   async function cargarEmpresas() {
     setCargando(true);
-    const { data } = await supabase
-      .from('companies')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setEmpresas(data ?? []);
+    const [{ data: emps }, { data: plns }] = await Promise.all([
+      supabase.from('companies').select('*').order('created_at', { ascending: false }),
+      supabase.from('planes').select('codigo, nombre, limite_dispositivos').eq('activo', true).order('orden'),
+    ]);
+    setEmpresas(emps ?? []);
+    setPlanes(plns ?? []);
     setCargando(false);
   }
 
@@ -234,8 +240,16 @@ export default function PaginaClientes() {
           <div style={{ display: 'flex', gap: '12px' }}>
             <div style={{ flex: 1 }}>
               <label style={s.label}>Plan</label>
-              <select value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })} style={s.input}>
-                {PLANES.map((p) => <option key={p} value={p}>{p}</option>)}
+              <select value={form.plan} onChange={(e) => {
+                const planElegido = planes.find((p) => p.codigo === e.target.value);
+                setForm({
+                  ...form,
+                  plan: e.target.value,
+                  limite_dispositivos: planElegido?.limite_dispositivos ?? form.limite_dispositivos,
+                });
+              }} style={s.input}>
+                {planes.length === 0 && <option value="trial">trial</option>}
+                {planes.map((p) => <option key={p.codigo} value={p.codigo}>{p.nombre}</option>)}
               </select>
             </div>
             <div style={{ flex: 1 }}>
