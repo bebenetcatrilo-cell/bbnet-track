@@ -48,6 +48,38 @@ export default function PaginaHistorial() {
   const [buscando, setBuscando] = useState(false);
   const [yaBuscado, setYaBuscado] = useState(false);
 
+  // Días que tienen recorrido (para marcarlos con puntito en el calendario)
+  const [diasConDatos, setDiasConDatos] = useState<Set<string>>(new Set());
+  const [mostrarCalendario, setMostrarCalendario] = useState(false);
+  // Mes que se muestra en el calendario (primer día del mes)
+  const [mesCalendario, setMesCalendario] = useState(() => {
+    const h = new Date();
+    return new Date(h.getFullYear(), h.getMonth(), 1);
+  });
+
+  // Cuando cambia el vehículo o el mes mostrado, buscamos qué días tienen datos
+  useEffect(() => {
+    async function cargarDiasConDatos() {
+      if (!vehiculoId) { setDiasConDatos(new Set()); return; }
+      const inicio = new Date(mesCalendario.getFullYear(), mesCalendario.getMonth(), 1);
+      const fin = new Date(mesCalendario.getFullYear(), mesCalendario.getMonth() + 1, 0, 23, 59, 59);
+      const { data } = await supabase
+        .from('locations')
+        .select('fecha_gps')
+        .eq('vehicle_id', vehiculoId)
+        .gte('fecha_gps', inicio.toISOString())
+        .lte('fecha_gps', fin.toISOString());
+      const dias = new Set<string>();
+      (data ?? []).forEach((r: any) => {
+        // Guardamos cada día (YYYY-MM-DD) que tenga al menos una posición
+        dias.add(new Date(r.fecha_gps).toISOString().slice(0, 10));
+      });
+      setDiasConDatos(dias);
+    }
+    cargarDiasConDatos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehiculoId, mesCalendario]);
+
   // Cargar la lista de vehículos al inicio
   useEffect(() => {
     async function cargar() {
@@ -181,9 +213,26 @@ export default function PaginaHistorial() {
             ))}
           </select>
         </div>
-        <div style={{ flex: '0 1 180px' }}>
+        <div style={{ flex: '0 1 180px', position: 'relative' }}>
           <label style={s.label}>Fecha</label>
-          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} style={s.input} />
+          <button
+            type="button"
+            onClick={() => setMostrarCalendario(!mostrarCalendario)}
+            style={{ ...s.input, textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <span>{fecha.split('-').reverse().join('/')}</span>
+            <span style={{ color: 'var(--texto-tenue)' }}>📅</span>
+          </button>
+          {mostrarCalendario && (
+            <CalendarioConPuntitos
+              fechaSeleccionada={fecha}
+              mes={mesCalendario}
+              diasConDatos={diasConDatos}
+              onCambiarMes={setMesCalendario}
+              onElegirDia={(d) => { setFecha(d); setMostrarCalendario(false); }}
+              onCerrar={() => setMostrarCalendario(false)}
+            />
+          )}
         </div>
         <button onClick={buscar} disabled={buscando} style={{ ...s.botonPrimario, opacity: buscando ? 0.6 : 1 }}>
           {buscando ? 'Buscando...' : 'Buscar recorrido'}
@@ -254,4 +303,116 @@ const s: { [k: string]: React.CSSProperties } = {
     position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
     background: 'var(--gris-oscuro)', color: 'var(--texto-suave)', fontSize: '14px', textAlign: 'center', padding: '20px',
   },
+};
+
+// ============================================================================
+// CALENDARIO CON PUNTITOS · marca los días que tienen recorrido
+// ============================================================================
+function CalendarioConPuntitos({
+  fechaSeleccionada, mes, diasConDatos, onCambiarMes, onElegirDia, onCerrar,
+}: {
+  fechaSeleccionada: string;
+  mes: Date;
+  diasConDatos: Set<string>;
+  onCambiarMes: (d: Date) => void;
+  onElegirDia: (dia: string) => void;
+  onCerrar: () => void;
+}) {
+  const año = mes.getFullYear();
+  const mesNum = mes.getMonth();
+  const nombresMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const diasSemana = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
+
+  // Primer día del mes y cuántos días tiene
+  const primerDia = new Date(año, mesNum, 1).getDay(); // 0=domingo
+  const diasEnMes = new Date(año, mesNum + 1, 0).getDate();
+  const hoy = new Date().toISOString().slice(0, 10);
+
+  // Armamos las celdas: huecos al inicio + días
+  const celdas: (number | null)[] = [];
+  for (let i = 0; i < primerDia; i++) celdas.push(null);
+  for (let d = 1; d <= diasEnMes; d++) celdas.push(d);
+
+  function fechaDe(dia: number): string {
+    const m = String(mesNum + 1).padStart(2, '0');
+    const dd = String(dia).padStart(2, '0');
+    return `${año}-${m}-${dd}`;
+  }
+
+  return (
+    <>
+      {/* Fondo para cerrar al hacer clic afuera */}
+      <div onClick={onCerrar} style={{ position: 'fixed', inset: 0, zIndex: 50 }} />
+      <div style={{
+        position: 'absolute', top: '76px', left: 0, zIndex: 51,
+        background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
+        borderRadius: '12px', padding: '14px', width: '280px',
+        boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+      }}>
+        {/* Cabecera: mes y flechas */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <button type="button" onClick={() => onCambiarMes(new Date(año, mesNum - 1, 1))}
+            style={calBtn}>‹</button>
+          <span style={{ fontWeight: 600, color: 'var(--texto)', fontSize: '14px' }}>
+            {nombresMes[mesNum]} {año}
+          </span>
+          <button type="button" onClick={() => onCambiarMes(new Date(año, mesNum + 1, 1))}
+            style={calBtn}>›</button>
+        </div>
+
+        {/* Días de la semana */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
+          {diasSemana.map((d) => (
+            <div key={d} style={{ textAlign: 'center', fontSize: '11px', color: 'var(--texto-tenue)', padding: '4px 0' }}>{d}</div>
+          ))}
+        </div>
+
+        {/* Días del mes */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
+          {celdas.map((dia, i) => {
+            if (dia === null) return <div key={`v${i}`} />;
+            const f = fechaDe(dia);
+            const tieneData = diasConDatos.has(f);
+            const esSeleccionado = f === fechaSeleccionada;
+            const esHoy = f === hoy;
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => onElegirDia(f)}
+                style={{
+                  position: 'relative', aspectRatio: '1', border: 'none', borderRadius: '8px',
+                  cursor: 'pointer', fontSize: '13px', fontWeight: esSeleccionado ? 700 : 500,
+                  background: esSeleccionado ? 'var(--azul-electrico)' : 'transparent',
+                  color: esSeleccionado ? '#fff' : esHoy ? 'var(--azul-brillante)' : 'var(--texto)',
+                  outline: esHoy && !esSeleccionado ? '1px solid var(--azul-electrico)' : 'none',
+                }}
+              >
+                {dia}
+                {/* Puntito si ese día tiene recorrido */}
+                {tieneData && (
+                  <span style={{
+                    position: 'absolute', bottom: '4px', left: '50%', transform: 'translateX(-50%)',
+                    width: '5px', height: '5px', borderRadius: '50%',
+                    background: esSeleccionado ? '#fff' : 'var(--verde-online)',
+                  }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Leyenda */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '12px', fontSize: '11px', color: 'var(--texto-tenue)' }}>
+          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--verde-online)', display: 'inline-block' }} />
+          Días con recorrido
+        </div>
+      </div>
+    </>
+  );
+}
+
+const calBtn: React.CSSProperties = {
+  background: 'var(--negro)', border: '1px solid var(--gris-borde)', borderRadius: '8px',
+  color: 'var(--texto)', width: '32px', height: '32px', cursor: 'pointer', fontSize: '18px',
 };
