@@ -6,8 +6,7 @@
 // Muestra un mapa con los vehículos como puntitos. Cuando llega una posición
 // nueva (Supabase Realtime), el punto se mueve solo.
 //
-// NUEVO: botón arriba para cambiar entre vista de Calles (OpenStreetMap) y
-// vista Satelital (fotos del terreno, de Esri, gratis).
+// El selector Calles/Satelital está a la DERECHA para no pisar el zoom.
 // ============================================================================
 
 import { useEffect, useRef, useState } from 'react';
@@ -23,7 +22,6 @@ type Posicion = {
   fecha_gps: string;
 };
 
-// Las dos "capas" de fondo disponibles
 const CAPAS = {
   calles: {
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -40,7 +38,7 @@ export default function MapaEnVivo() {
 
   const contenedorRef = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<any>(null);
-  const capaFondoRef = useRef<any>(null); // la capa de fondo actual (calles o satelital)
+  const capaFondoRef = useRef<any>(null);
   const marcadoresRef = useRef<{ [vehicleId: string]: any }>({});
   const LRef = useRef<any>(null);
 
@@ -48,9 +46,6 @@ export default function MapaEnVivo() {
   const [vehiculos, setVehiculos] = useState<Posicion[]>([]);
   const [vista, setVista] = useState<'calles' | 'satelital'>('calles');
 
-  // -------------------------------------------------------------------------
-  // 1) Inicializar el mapa (una sola vez)
-  // -------------------------------------------------------------------------
   useEffect(() => {
     let cancelado = false;
 
@@ -65,7 +60,6 @@ export default function MapaEnVivo() {
         zoomControl: true,
       });
 
-      // Capa de fondo inicial: calles
       capaFondoRef.current = L.tileLayer(CAPAS.calles.url, {
         attribution: CAPAS.calles.attribution,
         maxZoom: 19,
@@ -89,15 +83,11 @@ export default function MapaEnVivo() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // -------------------------------------------------------------------------
-  // Cambiar entre Calles y Satelital
-  // -------------------------------------------------------------------------
   function cambiarVista(nueva: 'calles' | 'satelital') {
     const L = LRef.current;
     const mapa = mapaRef.current;
     if (!L || !mapa) return;
 
-    // Sacamos la capa actual y ponemos la nueva
     if (capaFondoRef.current) {
       mapa.removeLayer(capaFondoRef.current);
     }
@@ -106,14 +96,10 @@ export default function MapaEnVivo() {
       maxZoom: 19,
     }).addTo(mapa);
 
-    // La capa de fondo va atrás de los marcadores
     capaFondoRef.current.bringToBack();
     setVista(nueva);
   }
 
-  // -------------------------------------------------------------------------
-  // 2) Traer la última posición de cada vehículo
-  // -------------------------------------------------------------------------
   async function cargarPosicionesIniciales() {
     const { data, error } = await supabase
       .from('locations')
@@ -145,9 +131,6 @@ export default function MapaEnVivo() {
     lista.forEach(dibujarOActualizarMarcador);
   }
 
-  // -------------------------------------------------------------------------
-  // 3) Dibujar o mover el puntito de un vehículo
-  // -------------------------------------------------------------------------
   function dibujarOActualizarMarcador(p: Posicion) {
     const L = LRef.current;
     const mapa = mapaRef.current;
@@ -188,9 +171,6 @@ export default function MapaEnVivo() {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // 4) Tiempo real
-  // -------------------------------------------------------------------------
   useEffect(() => {
     const canal = supabase
       .channel('locations-en-vivo')
@@ -232,18 +212,14 @@ export default function MapaEnVivo() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
   return (
     <div style={{ display: 'flex', gap: '18px', height: 'calc(100vh - 140px)' }}>
-      {/* Mapa */}
       <div style={{ flex: 1, position: 'relative', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--gris-borde)' }}>
         <div ref={contenedorRef} style={{ width: '100%', height: '100%' }} />
 
-        {/* Selector Calles / Satelital (flota arriba a la izquierda del mapa) */}
+        {/* Selector Calles / Satelital (a la DERECHA, no pisa el zoom) */}
         <div style={{
-          position: 'absolute', top: '12px', left: '12px', zIndex: 1000,
+          position: 'absolute', top: '12px', right: '12px', zIndex: 1000,
           display: 'flex', background: 'var(--gris-oscuro)', borderRadius: '10px',
           padding: '4px', border: '1px solid var(--gris-borde)', gap: '4px',
           boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
@@ -281,7 +257,6 @@ export default function MapaEnVivo() {
         )}
       </div>
 
-      {/* Panel lateral */}
       <div style={{
         width: '280px', background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
         borderRadius: '14px', padding: '18px', overflowY: 'auto',
