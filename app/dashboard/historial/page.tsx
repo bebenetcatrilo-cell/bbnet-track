@@ -118,6 +118,59 @@ export default function PaginaHistorial() {
     setBuscando(false);
   }
 
+  // Navega al día anterior o siguiente QUE TENGA datos.
+  // direccion: -1 = anterior, +1 = siguiente
+  function navegarDia(direccion: number) {
+    // Ordenamos los días con datos (vienen del calendario del mes actual)
+    const dias = Array.from(diasConDatos).sort();
+    if (dias.length === 0) return;
+
+    // Buscamos la posición del día actual en la lista
+    const idx = dias.indexOf(fecha);
+
+    let nuevoDia: string | null = null;
+    if (idx === -1) {
+      // El día actual no está en la lista: vamos al más cercano según dirección
+      if (direccion < 0) {
+        nuevoDia = [...dias].reverse().find((d) => d < fecha) ?? null;
+      } else {
+        nuevoDia = dias.find((d) => d > fecha) ?? null;
+      }
+    } else {
+      const nuevoIdx = idx + direccion;
+      if (nuevoIdx >= 0 && nuevoIdx < dias.length) nuevoDia = dias[nuevoIdx];
+    }
+
+    if (nuevoDia) {
+      setFecha(nuevoDia);
+      // Buscamos automáticamente el recorrido del nuevo día
+      setTimeout(() => buscarFecha(nuevoDia!), 0);
+    }
+  }
+
+  // Versión de buscar que recibe una fecha directa (para la navegación)
+  async function buscarFecha(f: string) {
+    if (!vehiculoId) return;
+    setBuscando(true);
+    setYaBuscado(true);
+    const { data } = await supabase
+      .from('locations')
+      .select('latitud, longitud, velocidad, fecha_gps')
+      .eq('vehicle_id', vehiculoId)
+      .gte('fecha_gps', `${f}T00:00:00`)
+      .lte('fecha_gps', `${f}T23:59:59`)
+      .order('fecha_gps', { ascending: true });
+    const pts = (data ?? []) as Punto[];
+    setPuntos(pts);
+    setParadas(calcularParadas(pts));
+    setBuscando(false);
+  }
+
+  // ¿Hay día anterior/siguiente con datos? (para habilitar/deshabilitar botones)
+  const diasOrdenados = Array.from(diasConDatos).sort();
+  const hayAnterior = diasOrdenados.some((d) => d < fecha);
+  const haySiguiente = diasOrdenados.some((d) => d > fecha);
+
   // ---- Cálculos del recorrido ----
 
   // Distancia entre dos puntos GPS (fórmula de Haversine), en km
@@ -237,6 +290,25 @@ export default function PaginaHistorial() {
         <button onClick={buscar} disabled={buscando} style={{ ...s.botonPrimario, opacity: buscando ? 0.6 : 1 }}>
           {buscando ? 'Buscando...' : 'Buscar recorrido'}
         </button>
+        {/* Navegación rápida entre días con datos */}
+        {yaBuscado && (
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => navegarDia(-1)}
+              disabled={!hayAnterior}
+              title="Día anterior con recorrido"
+              style={{ ...s.botonNav, opacity: hayAnterior ? 1 : 0.35, cursor: hayAnterior ? 'pointer' : 'default' }}
+            >‹ Día anterior</button>
+            <button
+              type="button"
+              onClick={() => navegarDia(1)}
+              disabled={!haySiguiente}
+              title="Día siguiente con recorrido"
+              style={{ ...s.botonNav, opacity: haySiguiente ? 1 : 0.35, cursor: haySiguiente ? 'pointer' : 'default' }}
+            >Día siguiente ›</button>
+          </div>
+        )}
       </div>
 
       {/* Tarjetas de datos */}
@@ -295,6 +367,10 @@ const s: { [k: string]: React.CSSProperties } = {
     fontSize: '14px', fontWeight: 600, boxShadow: '0 6px 18px var(--azul-glow)', height: '44px',
   },
   label: { display: 'block', fontSize: '13px', color: 'var(--texto-suave)', marginBottom: '5px', fontWeight: 500 },
+  botonNav: {
+    background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)', borderRadius: '9px',
+    padding: '11px 14px', color: 'var(--texto)', fontSize: '13px', fontWeight: 600, height: '44px', whiteSpace: 'nowrap',
+  },
   input: {
     width: '100%', background: 'var(--negro)', border: '1px solid var(--gris-borde)',
     borderRadius: '9px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none', height: '44px',
