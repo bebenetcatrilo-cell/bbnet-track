@@ -1,17 +1,8 @@
 'use client';
 
-// ============================================================================
-// SECCIÓN VEHÍCULOS · ABM completo (Alta, Baja, Modificación)
-// ----------------------------------------------------------------------------
-// Lista los vehículos de la empresa y permite crear, editar y eliminar.
-// En el formulario también se puede asignar/cambiar el dispositivo rastreador
-// (celular o GPS) de cada vehículo.
-//
-// Todo respeta la seguridad multiempresa: cada empresa ve solo SUS vehículos.
-// ============================================================================
-
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
+import VentanaFlotante from '@/components/VentanaFlotante';
 
 type Vehiculo = {
   id: string;
@@ -33,7 +24,6 @@ type Dispositivo = {
 
 const TIPOS_VEHICULO = ['auto', 'camioneta', 'camion', 'moto'];
 
-// Formulario vacío para "nuevo vehículo"
 const VEHICULO_VACIO = {
   id: '',
   nombre: '',
@@ -53,13 +43,11 @@ export default function PaginaVehiculos() {
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState('');
 
-  // Estado del modal (formulario)
   const [modalAbierto, setModalAbierto] = useState(false);
   const [form, setForm] = useState<typeof VEHICULO_VACIO>(VEHICULO_VACIO);
-  const [dispositivoElegido, setDispositivoElegido] = useState<string>(''); // id del dispositivo asignado
+  const [dispositivoElegido, setDispositivoElegido] = useState<string>('');
   const [guardando, setGuardando] = useState(false);
 
-  // Cargar datos al inicio
   useEffect(() => {
     cargarTodo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,14 +64,12 @@ export default function PaginaVehiculos() {
     setCargando(false);
   }
 
-  // Abrir modal para crear uno nuevo
   function abrirNuevo() {
     setForm(VEHICULO_VACIO);
     setDispositivoElegido('');
     setModalAbierto(true);
   }
 
-  // Abrir modal para editar uno existente
   function abrirEditar(v: Vehiculo) {
     setForm({
       id: v.id,
@@ -95,13 +81,11 @@ export default function PaginaVehiculos() {
       color: v.color ?? '',
       activo: v.activo,
     });
-    // Buscamos si ya tiene un dispositivo asignado
     const disp = dispositivos.find((d) => d.vehicle_id === v.id);
     setDispositivoElegido(disp?.id ?? '');
     setModalAbierto(true);
   }
 
-  // Guardar (crear o actualizar)
   async function guardar() {
     if (!form.nombre.trim()) {
       alert('Poné al menos un nombre para el vehículo.');
@@ -112,7 +96,6 @@ export default function PaginaVehiculos() {
     let vehicleId = form.id;
 
     if (form.id) {
-      // ACTUALIZAR vehículo existente
       await supabase
         .from('vehicles')
         .update({
@@ -126,7 +109,6 @@ export default function PaginaVehiculos() {
         })
         .eq('id', form.id);
     } else {
-      // CREAR vehículo nuevo. Necesitamos el company_id del usuario.
       const { data: perfil } = await supabase
         .from('users')
         .select('company_id')
@@ -151,15 +133,12 @@ export default function PaginaVehiculos() {
       vehicleId = nuevo?.id ?? '';
     }
 
-    // Manejar la asignación del dispositivo
     if (vehicleId) {
-      // Primero, soltamos cualquier dispositivo que estuviera en este vehículo
       await supabase
         .from('tracker_devices')
         .update({ vehicle_id: null })
         .eq('vehicle_id', vehicleId);
 
-      // Si se eligió uno, lo asignamos
       if (dispositivoElegido) {
         await supabase
           .from('tracker_devices')
@@ -173,14 +152,12 @@ export default function PaginaVehiculos() {
     cargarTodo();
   }
 
-  // Eliminar
   async function eliminar(v: Vehiculo) {
     if (!confirm(`¿Seguro que querés eliminar "${v.nombre}"?`)) return;
     await supabase.from('vehicles').delete().eq('id', v.id);
     cargarTodo();
   }
 
-  // Filtrado por búsqueda
   const vehiculosFiltrados = vehiculos.filter((v) => {
     const t = busqueda.toLowerCase();
     return (
@@ -190,13 +167,10 @@ export default function PaginaVehiculos() {
     );
   });
 
-  // Dispositivos disponibles para asignar:
-  // los que no tienen vehículo, MÁS el que ya está asignado a este vehículo
   const dispositivosDisponibles = dispositivos.filter(
     (d) => !d.vehicle_id || d.id === dispositivoElegido
   );
 
-  // Nombre del dispositivo de un vehículo (para mostrar en la lista)
   function dispositivoDe(vehicleId: string): string {
     const d = dispositivos.find((x) => x.vehicle_id === vehicleId);
     return d ? d.nombre : '—';
@@ -204,7 +178,6 @@ export default function PaginaVehiculos() {
 
   return (
     <div>
-      {/* Encabezado */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '26px', fontWeight: 700, letterSpacing: '-0.5px' }}>Vehículos</h1>
@@ -215,7 +188,6 @@ export default function PaginaVehiculos() {
         <button onClick={abrirNuevo} style={s.botonPrimario}>+ Nuevo vehículo</button>
       </div>
 
-      {/* Buscador */}
       <input
         value={busqueda}
         onChange={(e) => setBusqueda(e.target.value)}
@@ -223,7 +195,6 @@ export default function PaginaVehiculos() {
         style={s.buscador}
       />
 
-      {/* Lista */}
       {cargando ? (
         <div style={{ color: 'var(--texto-suave)', padding: '40px', textAlign: 'center' }}>Cargando...</div>
       ) : vehiculosFiltrados.length === 0 ? (
@@ -270,74 +241,68 @@ export default function PaginaVehiculos() {
         </div>
       )}
 
-      {/* MODAL del formulario */}
+      {/* VENTANA FLOTANTE (arrastrable, no se cierra al tocar afuera) */}
       {modalAbierto && (
-        <div style={s.overlay} onClick={() => setModalAbierto(false)}>
-          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '20px' }}>
-              {form.id ? 'Editar vehículo' : 'Nuevo vehículo'}
-            </h2>
+        <VentanaFlotante
+          titulo={form.id ? 'Editar vehículo' : 'Nuevo vehículo'}
+          onCerrar={() => setModalAbierto(false)}
+        >
+          <label style={s.label}>Nombre *</label>
+          <input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+            placeholder="Ej: Camioneta Técnicos 1" style={s.input} autoFocus />
 
-            <label style={s.label}>Nombre *</label>
-            <input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-              placeholder="Ej: Camioneta Técnicos 1" style={s.input} autoFocus />
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={s.label}>Patente</label>
-                <input value={form.patente} onChange={(e) => setForm({ ...form, patente: e.target.value })}
-                  placeholder="AB123CD" style={s.input} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={s.label}>Tipo</label>
-                <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} style={s.input}>
-                  {TIPOS_VEHICULO.map((t) => (
-                    <option key={t} value={t} style={{ textTransform: 'capitalize' }}>{t}</option>
-                  ))}
-                </select>
-              </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={s.label}>Patente</label>
+              <input value={form.patente} onChange={(e) => setForm({ ...form, patente: e.target.value })}
+                placeholder="AB123CD" style={s.input} />
             </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={s.label}>Marca</label>
-                <input value={form.marca} onChange={(e) => setForm({ ...form, marca: e.target.value })}
-                  placeholder="Toyota" style={s.input} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={s.label}>Modelo</label>
-                <input value={form.modelo} onChange={(e) => setForm({ ...form, modelo: e.target.value })}
-                  placeholder="Hilux" style={s.input} />
-              </div>
-            </div>
-
-            {/* Asignación de dispositivo */}
-            <label style={s.label}>Dispositivo de rastreo</label>
-            <select value={dispositivoElegido} onChange={(e) => setDispositivoElegido(e.target.value)} style={s.input}>
-              <option value="">— Sin dispositivo —</option>
-              {dispositivosDisponibles.map((d) => (
-                <option key={d.id} value={d.id}>{d.nombre} ({d.tipo})</option>
-              ))}
-            </select>
-            <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '4px' }}>
-              Solo aparecen los dispositivos libres (sin vehículo asignado).
-            </div>
-
-            {/* Activo */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px', fontSize: '14px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={form.activo} onChange={(e) => setForm({ ...form, activo: e.target.checked })} />
-              Vehículo activo
-            </label>
-
-            {/* Botones */}
-            <div style={{ display: 'flex', gap: '10px', marginTop: '24px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setModalAbierto(false)} style={s.botonChico}>Cancelar</button>
-              <button onClick={guardar} disabled={guardando} style={{ ...s.botonPrimario, opacity: guardando ? 0.6 : 1 }}>
-                {guardando ? 'Guardando...' : 'Guardar'}
-              </button>
+            <div style={{ flex: 1 }}>
+              <label style={s.label}>Tipo</label>
+              <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} style={s.input}>
+                {TIPOS_VEHICULO.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </div>
           </div>
-        </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={s.label}>Marca</label>
+              <input value={form.marca} onChange={(e) => setForm({ ...form, marca: e.target.value })}
+                placeholder="Toyota" style={s.input} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={s.label}>Modelo</label>
+              <input value={form.modelo} onChange={(e) => setForm({ ...form, modelo: e.target.value })}
+                placeholder="Hilux" style={s.input} />
+            </div>
+          </div>
+
+          <label style={s.label}>Dispositivo de rastreo</label>
+          <select value={dispositivoElegido} onChange={(e) => setDispositivoElegido(e.target.value)} style={s.input}>
+            <option value="">— Sin dispositivo —</option>
+            {dispositivosDisponibles.map((d) => (
+              <option key={d.id} value={d.id}>{d.nombre} ({d.tipo})</option>
+            ))}
+          </select>
+          <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '4px' }}>
+            Solo aparecen los dispositivos libres (sin vehículo asignado).
+          </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px', fontSize: '14px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={form.activo} onChange={(e) => setForm({ ...form, activo: e.target.checked })} />
+            Vehículo activo
+          </label>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '24px', justifyContent: 'flex-end' }}>
+            <button onClick={() => setModalAbierto(false)} style={s.botonChico}>Cancelar</button>
+            <button onClick={guardar} disabled={guardando} style={{ ...s.botonPrimario, opacity: guardando ? 0.6 : 1 }}>
+              {guardando ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        </VentanaFlotante>
       )}
     </div>
   );
@@ -361,15 +326,6 @@ const s: { [k: string]: React.CSSProperties } = {
   tarjeta: {
     background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
     borderRadius: '14px', padding: '18px',
-  },
-  overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex',
-    alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px',
-  },
-  modal: {
-    background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)', borderRadius: '16px',
-    padding: '28px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
   },
   label: {
     display: 'block', fontSize: '13px', color: 'var(--texto-suave)', marginTop: '14px',
