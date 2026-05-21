@@ -1,20 +1,18 @@
 'use client';
 
 // ============================================================================
-// MAPA EN VIVO · el corazón del Bloque 3
+// MAPA EN VIVO · con selector Calles / Satelital
 // ----------------------------------------------------------------------------
-// Muestra un mapa de OpenStreetMap con los vehículos como puntitos. Cuando
-// llega una posición nueva a la base (Supabase Realtime), el punto se mueve
-// solo, sin recargar la página.
+// Muestra un mapa con los vehículos como puntitos. Cuando llega una posición
+// nueva (Supabase Realtime), el punto se mueve solo.
 //
-// Usamos Leaflet directamente (no react-leaflet) porque da menos problemas
-// con Next.js y tenemos más control. La librería se carga solo en el navegador.
+// NUEVO: botón arriba para cambiar entre vista de Calles (OpenStreetMap) y
+// vista Satelital (fotos del terreno, de Esri, gratis).
 // ============================================================================
 
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 
-// Tipo de dato de cada posición que mostramos en el mapa
 type Posicion = {
   vehicle_id: string;
   nombre: string;
@@ -25,53 +23,62 @@ type Posicion = {
   fecha_gps: string;
 };
 
+// Las dos "capas" de fondo disponibles
+const CAPAS = {
+  calles: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap',
+  },
+  satelital: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '© Esri',
+  },
+};
+
 export default function MapaEnVivo() {
   const supabase = createClient();
 
-  // Referencias a cosas de Leaflet que viven fuera de React
   const contenedorRef = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<any>(null);
+  const capaFondoRef = useRef<any>(null); // la capa de fondo actual (calles o satelital)
   const marcadoresRef = useRef<{ [vehicleId: string]: any }>({});
-  const LRef = useRef<any>(null); // la librería Leaflet ya cargada
+  const LRef = useRef<any>(null);
 
   const [cargando, setCargando] = useState(true);
   const [vehiculos, setVehiculos] = useState<Posicion[]>([]);
+  const [vista, setVista] = useState<'calles' | 'satelital'>('calles');
 
   // -------------------------------------------------------------------------
-  // 1) Inicializar el mapa (una sola vez, al montar el componente)
+  // 1) Inicializar el mapa (una sola vez)
   // -------------------------------------------------------------------------
   useEffect(() => {
     let cancelado = false;
 
     async function iniciar() {
-      // Cargamos Leaflet dinámicamente (solo en el navegador)
       const L = (await import('leaflet')).default;
       if (cancelado || !contenedorRef.current) return;
       LRef.current = L;
 
-      // Centro del mapa: La Pampa, Argentina (zona de trabajo de BBNet)
       const mapa = L.map(contenedorRef.current, {
-        center: [-36.41, -64.29], // Catriló / La Pampa aprox
+        center: [-36.41, -64.29],
         zoom: 11,
         zoomControl: true,
       });
 
-      // El "fondo" del mapa: las calles de OpenStreetMap (gratis)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
+      // Capa de fondo inicial: calles
+      capaFondoRef.current = L.tileLayer(CAPAS.calles.url, {
+        attribution: CAPAS.calles.attribution,
         maxZoom: 19,
       }).addTo(mapa);
 
       mapaRef.current = mapa;
 
-      // Traemos las posiciones iniciales
       await cargarPosicionesIniciales();
       setCargando(false);
     }
 
     iniciar();
 
-    // Limpieza: cuando salimos de la página, destruimos el mapa
     return () => {
       cancelado = true;
       if (mapaRef.current) {
@@ -83,10 +90,31 @@ export default function MapaEnVivo() {
   }, []);
 
   // -------------------------------------------------------------------------
+  // Cambiar entre Calles y Satelital
+  // -------------------------------------------------------------------------
+  function cambiarVista(nueva: 'calles' | 'satelital') {
+    const L = LRef.current;
+    const mapa = mapaRef.current;
+    if (!L || !mapa) return;
+
+    // Sacamos la capa actual y ponemos la nueva
+    if (capaFondoRef.current) {
+      mapa.removeLayer(capaFondoRef.current);
+    }
+    capaFondoRef.current = L.tileLayer(CAPAS[nueva].url, {
+      attribution: CAPAS[nueva].attribution,
+      maxZoom: 19,
+    }).addTo(mapa);
+
+    // La capa de fondo va atrás de los marcadores
+    capaFondoRef.current.bringToBack();
+    setVista(nueva);
+  }
+
+  // -------------------------------------------------------------------------
   // 2) Traer la última posición de cada vehículo
   // -------------------------------------------------------------------------
   async function cargarPosicionesIniciales() {
-    // Traemos las posiciones más recientes con el nombre del vehículo
     const { data, error } = await supabase
       .from('locations')
       .select('vehicle_id, latitud, longitud, velocidad, bateria, fecha_gps, vehicles(nombre)')
@@ -95,7 +123,6 @@ export default function MapaEnVivo() {
 
     if (error || !data) return;
 
-    // Nos quedamos solo con la posición MÁS RECIENTE de cada vehículo
     const ultimaPorVehiculo: { [id: string]: Posicion } = {};
     for (const fila of data as any[]) {
       const vid = fila.vehicle_id;
@@ -119,14 +146,13 @@ export default function MapaEnVivo() {
   }
 
   // -------------------------------------------------------------------------
-  // 3) Dibujar o mover el puntito de un vehículo en el mapa
+  // 3) Dibujar o mover el puntito de un vehículo
   // -------------------------------------------------------------------------
   function dibujarOActualizarMarcador(p: Posicion) {
     const L = LRef.current;
     const mapa = mapaRef.current;
     if (!L || !mapa) return;
 
-    // El iconito del vehículo (un círculo azul con glow)
     const icono = L.divIcon({
       className: '',
       html: `
@@ -152,11 +178,9 @@ export default function MapaEnVivo() {
 
     const existente = marcadoresRef.current[p.vehicle_id];
     if (existente) {
-      // Ya existe: solo lo movemos a la nueva posición
       existente.setLatLng([p.latitud, p.longitud]);
       existente.setPopupContent(popup);
     } else {
-      // Nuevo: lo creamos
       const marcador = L.marker([p.latitud, p.longitud], { icon: icono })
         .addTo(mapa)
         .bindPopup(popup);
@@ -165,7 +189,7 @@ export default function MapaEnVivo() {
   }
 
   // -------------------------------------------------------------------------
-  // 4) Tiempo real: escuchar posiciones nuevas y mover los puntos solos
+  // 4) Tiempo real
   // -------------------------------------------------------------------------
   useEffect(() => {
     const canal = supabase
@@ -176,7 +200,6 @@ export default function MapaEnVivo() {
         async (payload) => {
           const nueva = payload.new as any;
 
-          // Buscamos el nombre del vehículo (el INSERT no lo trae)
           const { data: veh } = await supabase
             .from('vehicles')
             .select('nombre')
@@ -195,7 +218,6 @@ export default function MapaEnVivo() {
 
           dibujarOActualizarMarcador(p);
 
-          // Actualizamos la lista lateral
           setVehiculos((prev) => {
             const otros = prev.filter((v) => v.vehicle_id !== p.vehicle_id);
             return [...otros, p];
@@ -218,6 +240,36 @@ export default function MapaEnVivo() {
       {/* Mapa */}
       <div style={{ flex: 1, position: 'relative', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--gris-borde)' }}>
         <div ref={contenedorRef} style={{ width: '100%', height: '100%' }} />
+
+        {/* Selector Calles / Satelital (flota arriba a la izquierda del mapa) */}
+        <div style={{
+          position: 'absolute', top: '12px', left: '12px', zIndex: 1000,
+          display: 'flex', background: 'var(--gris-oscuro)', borderRadius: '10px',
+          padding: '4px', border: '1px solid var(--gris-borde)', gap: '4px',
+          boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
+        }}>
+          <button
+            onClick={() => cambiarVista('calles')}
+            style={{
+              padding: '7px 14px', borderRadius: '7px', border: 'none', fontSize: '13px',
+              fontWeight: 600, background: vista === 'calles' ? 'var(--azul-electrico)' : 'transparent',
+              color: vista === 'calles' ? '#fff' : 'var(--texto-suave)',
+            }}
+          >
+            Calles
+          </button>
+          <button
+            onClick={() => cambiarVista('satelital')}
+            style={{
+              padding: '7px 14px', borderRadius: '7px', border: 'none', fontSize: '13px',
+              fontWeight: 600, background: vista === 'satelital' ? 'var(--azul-electrico)' : 'transparent',
+              color: vista === 'satelital' ? '#fff' : 'var(--texto-suave)',
+            }}
+          >
+            Satelital
+          </button>
+        </div>
+
         {cargando && (
           <div style={{
             position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
@@ -229,7 +281,7 @@ export default function MapaEnVivo() {
         )}
       </div>
 
-      {/* Panel lateral con la lista de vehículos */}
+      {/* Panel lateral */}
       <div style={{
         width: '280px', background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
         borderRadius: '14px', padding: '18px', overflowY: 'auto',
