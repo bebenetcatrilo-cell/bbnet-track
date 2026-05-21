@@ -20,6 +20,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
+      <head>
+        {/* CSS de Leaflet (el mapa). Sin esto, el mapa se ve roto. */}
+        <link
+          rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

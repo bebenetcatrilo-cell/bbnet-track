@@ -14,7 +14,7 @@ import { createClient } from '@/lib/supabase-client';
 // Los ítems del menú. "proximo: true" = todavía no construido (Bloques 3+)
 const items = [
   { href: '/dashboard', label: 'Dashboard', icono: '▦', proximo: false },
-  { href: '/dashboard/mapa', label: 'Mapa en vivo', icono: '◎', proximo: true },
+  { href: '/dashboard/mapa', label: 'Mapa en vivo', icono: '◎', proximo: false },
   { href: '/dashboard/vehiculos', label: 'Vehículos', icono: '⊞', proximo: true },
   { href: '/dashboard/historial', label: 'Historial', icono: '↻', proximo: true },
   { href: '/dashboard/dispositivos', label: 'Dispositivos', icono: '⊡', proximo: true },

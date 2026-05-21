@@ -61,3 +61,16 @@ body::before {
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; cursor: pointer; }
 input { font-family: inherit; }
+
+/* Animación del puntito que late (botón simulador y vehículos online) */
+@keyframes pulso {
+  0%   { opacity: 1; transform: scale(1); }
+  50%  { opacity: 0.4; transform: scale(0.7); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* El popup de Leaflet, adaptado al tema oscuro */
+.leaflet-popup-content-wrapper {
+  background: #fff;
+  border-radius: 10px;
+}
