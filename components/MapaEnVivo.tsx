@@ -47,6 +47,20 @@ export default function MapaEnVivo() {
   const [cargando, setCargando] = useState(true);
   const [vehiculos, setVehiculos] = useState<Posicion[]>([]);
   const [vista, setVista] = useState<'calles' | 'satelital'>('calles');
+  const [esCelular, setEsCelular] = useState(false);
+
+  // Detectar si es celular (para apilar mapa arriba / lista abajo)
+  useEffect(() => {
+    function chequear() {
+      const celu = window.innerWidth <= 768;
+      setEsCelular(celu);
+      // El mapa necesita recalcular su tamaño cuando cambia el layout
+      setTimeout(() => mapaRef.current?.invalidateSize?.(), 200);
+    }
+    chequear();
+    window.addEventListener('resize', chequear);
+    return () => window.removeEventListener('resize', chequear);
+  }, []);
 
   // -------------------------------------------------------------------------
   // 1) Inicializar el mapa (una sola vez)
@@ -236,9 +250,18 @@ export default function MapaEnVivo() {
   // Render
   // -------------------------------------------------------------------------
   return (
-    <div style={{ display: 'flex', gap: '18px', height: 'calc(100vh - 140px)' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: esCelular ? 'column' : 'row',
+      gap: '18px',
+      height: esCelular ? 'auto' : 'calc(100vh - 140px)',
+    }}>
       {/* Mapa */}
-      <div style={{ flex: 1, position: 'relative', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--gris-borde)' }}>
+      <div style={{
+        flex: esCelular ? 'none' : 1,
+        height: esCelular ? '55vh' : 'auto',
+        position: 'relative', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--gris-borde)',
+      }}>
         <div ref={contenedorRef} style={{ width: '100%', height: '100%' }} />
 
         {/* Selector Calles / Satelital (flota arriba a la DERECHA del mapa,
@@ -282,10 +305,13 @@ export default function MapaEnVivo() {
         )}
       </div>
 
-      {/* Panel lateral */}
+      {/* Panel lateral (en celular: ancho completo, debajo del mapa) */}
       <div style={{
-        width: '280px', background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
+        width: esCelular ? '100%' : '280px',
+        flexShrink: 0,
+        background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
         borderRadius: '14px', padding: '18px', overflowY: 'auto',
+        maxHeight: esCelular ? '40vh' : 'none',
       }}>
         <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px' }}>
           Vehículos ({vehiculos.length})
