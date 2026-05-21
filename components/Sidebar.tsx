@@ -26,6 +26,7 @@ const itemsSuperAdmin = [
   { href: '/dashboard/clientes', label: 'Clientes', icono: '🏢', proximo: false },
   { href: '/dashboard/planes', label: 'Planes', icono: '💳', proximo: false },
   { href: '/dashboard/cobranza', label: 'Cobranza', icono: '💰', proximo: false },
+  { href: '/dashboard/servicio', label: 'Servicio', icono: '🛠️', proximo: false },
 ];
 
 export default function Sidebar({ empresa, rol }: { empresa: string; rol?: string }) {
