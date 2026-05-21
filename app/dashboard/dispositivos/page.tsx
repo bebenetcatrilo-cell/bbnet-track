@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import VentanaFlotante from '@/components/VentanaFlotante';
+import { estaOnline } from '@/lib/estado-online';
 
 type Dispositivo = {
   id: string;
@@ -256,14 +257,14 @@ export default function PaginaDispositivos() {
                 <span style={{
                   display: 'flex', alignItems: 'center', gap: '5px',
                   fontSize: '11px', padding: '3px 8px', borderRadius: '6px', fontWeight: 600,
-                  background: d.online ? 'rgba(34,217,122,0.15)' : 'var(--gris-medio)',
-                  color: d.online ? 'var(--verde-online)' : 'var(--texto-tenue)',
+                  background: estaOnline(d.ultima_conexion) ? 'rgba(34,217,122,0.15)' : 'var(--gris-medio)',
+                  color: estaOnline(d.ultima_conexion) ? 'var(--verde-online)' : 'var(--texto-tenue)',
                 }}>
                   <span style={{
                     width: '7px', height: '7px', borderRadius: '50%',
-                    background: d.online ? 'var(--verde-online)' : 'var(--texto-tenue)',
+                    background: estaOnline(d.ultima_conexion) ? 'var(--verde-online)' : 'var(--texto-tenue)',
                   }} />
-                  {d.online ? 'Online' : 'Offline'}
+                  {estaOnline(d.ultima_conexion) ? 'Online' : 'Offline'}
                 </span>
               </div>
 

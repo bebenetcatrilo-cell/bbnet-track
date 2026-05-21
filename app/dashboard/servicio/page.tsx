@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase-client';
+import { estaOnline } from '@/lib/estado-online';
 
 const MapaServicio = dynamic(() => import('@/components/MapaServicio'), {
   ssr: false,
@@ -85,7 +86,7 @@ export default function PaginaServicio() {
 
     const vehiculos = vehs ?? [];
     const dispositivos = disps ?? [];
-    const online = dispositivos.filter((d: any) => d.online).length;
+    const online = dispositivos.filter((d: any) => estaOnline(d.ultima_conexion)).length;
 
     setResumen({ vehiculos: vehiculos.length, dispositivos: dispositivos.length, online });
 
@@ -97,7 +98,7 @@ export default function PaginaServicio() {
       id: d.id,
       nombre: d.nombre,
       tipo: d.tipo,
-      online: d.online,
+      online: estaOnline(d.ultima_conexion),
       bateria: d.bateria,
       ultima_conexion: d.ultima_conexion,
       vehiculo: d.vehicle_id ? (mapaVeh[d.vehicle_id] ?? 'Sin asignar') : 'Sin asignar',
