@@ -18,7 +18,7 @@ const items = [
   { href: '/dashboard/vehiculos', label: 'Vehículos', icono: '⊞', proximo: false },
   { href: '/dashboard/historial', label: 'Historial', icono: '↻', proximo: false },
   { href: '/dashboard/dispositivos', label: 'Dispositivos', icono: '⊡', proximo: false },
-  { href: '/dashboard/reportes', label: 'Reportes', icono: '◈', proximo: true },
+  { href: '/dashboard/reportes', label: 'Reportes', icono: '◈', proximo: false },
 ];
 
 export default function Sidebar({ empresa }: { empresa: string }) {
