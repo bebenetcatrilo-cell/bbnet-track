@@ -1,0 +1,63 @@
+/* ============================================================================
+   BBNET TRACK · ESTILOS GLOBALES
+   ----------------------------------------------------------------------------
+   Tema: oscuro, moderno, minimalista, tecnológico. Estilo SaaS premium de
+   logística/GPS. Colores: negro, azul eléctrico, gris oscuro.
+   ============================================================================ */
+
+:root {
+  /* Paleta principal */
+  --negro:           #0a0e14;   /* fondo más oscuro */
+  --gris-oscuro:     #131822;   /* paneles y tarjetas */
+  --gris-medio:      #1c2433;   /* bordes, inputs */
+  --gris-borde:      #2a3444;
+  --azul-electrico:  #0066ff;   /* el color estrella */
+  --azul-brillante:  #2d8bff;
+  --azul-glow:       rgba(0, 102, 255, 0.35);
+
+  /* Textos */
+  --texto:           #e6edf7;
+  --texto-suave:     #8b97aa;
+  --texto-tenue:     #5a6678;
+
+  /* Estados */
+  --verde-online:    #22d97a;
+  --rojo-offline:    #ff4d5e;
+  --amarillo:        #ffb020;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--negro);
+  color: var(--texto);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Atmósfera: un leve resplandor azul de fondo, sutil */
+body::before {
+  content: '';
+  position: fixed;
+  top: -20%;
+  right: -10%;
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(circle, var(--azul-glow) 0%, transparent 60%);
+  filter: blur(80px);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+input { font-family: inherit; }
