@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
+import { getMiCompanyId } from '@/lib/mi-empresa';
 
 type FilaVehiculo = {
   id: string;
@@ -59,12 +60,14 @@ export default function PaginaReportes() {
     desde.setDate(desde.getDate() - dias + 1);
     desde.setHours(0, 0, 0, 0);
 
-    // Traemos los vehículos y todas las posiciones del período
+    // Traemos los vehículos y todas las posiciones del período (solo de nuestra empresa)
+    const miEmpresa = await getMiCompanyId();
     const [{ data: vehs }, { data: locs }] = await Promise.all([
-      supabase.from('vehicles').select('id, nombre').order('nombre'),
+      supabase.from('vehicles').select('id, nombre').eq('company_id', miEmpresa).order('nombre'),
       supabase
         .from('locations')
         .select('vehicle_id, latitud, longitud, velocidad, fecha_gps')
+        .eq('company_id', miEmpresa)
         .gte('fecha_gps', desde.toISOString())
         .order('fecha_gps', { ascending: true }),
     ]);

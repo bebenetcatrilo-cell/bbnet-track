@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase-client';
+import { getMiCompanyId } from '@/lib/mi-empresa';
 
 const MapaHistorial = dynamic(() => import('@/components/MapaHistorial'), {
   ssr: false,
@@ -83,7 +84,8 @@ export default function PaginaHistorial() {
   // Cargar la lista de vehículos al inicio
   useEffect(() => {
     async function cargar() {
-      const { data } = await supabase.from('vehicles').select('id, nombre').order('nombre');
+      const miEmpresa = await getMiCompanyId();
+      const { data } = await supabase.from('vehicles').select('id, nombre').eq('company_id', miEmpresa).order('nombre');
       setVehiculos(data ?? []);
       if (data && data.length > 0) setVehiculoId(data[0].id);
     }

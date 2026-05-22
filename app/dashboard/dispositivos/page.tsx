@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import VentanaFlotante from '@/components/VentanaFlotante';
 import { estaOnline } from '@/lib/estado-online';
+import { getMiCompanyId } from '@/lib/mi-empresa';
 
 type Dispositivo = {
   id: string;
@@ -70,9 +71,11 @@ export default function PaginaDispositivos() {
 
   async function cargarTodo() {
     setCargando(true);
+    // Solo lo de NUESTRA empresa (los clientes se ven en Servicio)
+    const miEmpresa = await getMiCompanyId();
     const [{ data: disps }, { data: vehs }] = await Promise.all([
-      supabase.from('tracker_devices').select('*').order('nombre'),
-      supabase.from('vehicles').select('id, nombre').order('nombre'),
+      supabase.from('tracker_devices').select('*').eq('company_id', miEmpresa).order('nombre'),
+      supabase.from('vehicles').select('id, nombre').eq('company_id', miEmpresa).order('nombre'),
     ]);
     setDispositivos(disps ?? []);
     setVehiculos(vehs ?? []);
