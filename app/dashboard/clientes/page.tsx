@@ -63,6 +63,10 @@ export default function PaginaClientes() {
   const [modalEditar, setModalEditar] = useState(false);
   const [empresaEditar, setEmpresaEditar] = useState<Empresa | null>(null);
   const [guardandoEdit, setGuardandoEdit] = useState(false);
+  // Datos del usuario admin del cliente (para editar nombre/email/contraseña)
+  const [adminCliente, setAdminCliente] = useState<{ id: string; nombre: string; email: string } | null>(null);
+  const [passwordNueva, setPasswordNueva] = useState('');
+  const [mensajeEdit, setMensajeEdit] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
 
   // Verificar que sea super_admin
   useEffect(() => {
@@ -147,37 +151,77 @@ export default function PaginaClientes() {
   }
 
   // Abrir el modal de edición con los datos de la empresa
-  function abrirEditar(e: Empresa) {
+  async function abrirEditar(e: Empresa) {
     setEmpresaEditar({ ...e });
+    setPasswordNueva('');
+    setMensajeEdit(null);
+    setAdminCliente(null);
     setModalEditar(true);
+    // Buscamos el usuario admin de esta empresa (para poder editar su email/contraseña)
+    const { data } = await supabase
+      .from('users')
+      .select('id, nombre, email')
+      .eq('company_id', e.id)
+      .eq('rol', 'admin')
+      .limit(1)
+      .maybeSingle();
+    if (data) setAdminCliente({ id: data.id, nombre: data.nombre ?? '', email: data.email ?? '' });
   }
 
-  // Guardar los cambios de la empresa
+  // Guardar los cambios de la empresa (usa la Edge Function segura)
   async function guardarEdicion() {
     if (!empresaEditar) return;
     if (!empresaEditar.nombre.trim()) {
-      alert('El nombre no puede quedar vacío.');
+      setMensajeEdit({ tipo: 'error', texto: 'El nombre no puede quedar vacío.' });
+      return;
+    }
+    if (passwordNueva && passwordNueva.length < 6) {
+      setMensajeEdit({ tipo: 'error', texto: 'La contraseña nueva debe tener al menos 6 caracteres.' });
       return;
     }
     setGuardandoEdit(true);
+    setMensajeEdit(null);
 
-    // Si cambió el plan, traemos el límite de ese plan para actualizarlo también
     const planElegido = planes.find((p) => p.codigo === empresaEditar.plan);
 
-    await supabase
-      .from('companies')
-      .update({
-        nombre: empresaEditar.nombre.trim(),
-        telefono: empresaEditar.telefono?.trim() || null,
-        email: empresaEditar.email?.trim() || null,
-        plan: empresaEditar.plan,
-        limite_dispositivos: planElegido?.limite_dispositivos ?? empresaEditar.limite_dispositivos,
-      })
-      .eq('id', empresaEditar.id);
-
-    setGuardandoEdit(false);
-    setModalEditar(false);
-    cargarEmpresas();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/editar-cliente`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            empresa_id: empresaEditar.id,
+            empresa_nombre: empresaEditar.nombre.trim(),
+            empresa_telefono: empresaEditar.telefono?.trim() || null,
+            empresa_email: empresaEditar.email?.trim() || null,
+            empresa_direccion: (empresaEditar as any).direccion?.trim() || null,
+            plan: empresaEditar.plan,
+            limite_dispositivos: planElegido?.limite_dispositivos ?? empresaEditar.limite_dispositivos,
+            admin_id: adminCliente?.id ?? null,
+            admin_nombre: adminCliente?.nombre ?? null,
+            admin_email: adminCliente?.email ?? null,
+            admin_password: passwordNueva || null,
+          }),
+        }
+      );
+      const resultado = await resp.json();
+      if (!resp.ok) {
+        setMensajeEdit({ tipo: 'error', texto: resultado.error ?? 'No se pudo guardar.' });
+        setGuardandoEdit(false);
+        return;
+      }
+      setGuardandoEdit(false);
+      setModalEditar(false);
+      cargarEmpresas();
+    } catch (err) {
+      setMensajeEdit({ tipo: 'error', texto: 'Error de conexión. Probá de nuevo.' });
+      setGuardandoEdit(false);
+    }
   }
 
   // Activar / desactivar un cliente (le corta o reactiva el servicio)
@@ -276,7 +320,12 @@ export default function PaginaClientes() {
 
       {/* VENTANA FLOTANTE: editar cliente existente */}
       {modalEditar && empresaEditar && (
-        <VentanaFlotante titulo={`Editar: ${empresaEditar.nombre}`} onCerrar={() => setModalEditar(false)}>
+        <VentanaFlotante titulo={`Editar: ${empresaEditar.nombre}`} onCerrar={() => setModalEditar(false)} ancho={520}>
+          {/* --- DATOS DE LA EMPRESA --- */}
+          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--azul-brillante)', marginBottom: '8px' }}>
+            DATOS DE LA EMPRESA
+          </div>
+
           <label style={s.label}>Nombre de la empresa *</label>
           <input value={empresaEditar.nombre} onChange={(ev) => setEmpresaEditar({ ...empresaEditar, nombre: ev.target.value })}
             style={s.input} autoFocus />
@@ -288,11 +337,15 @@ export default function PaginaClientes() {
                 style={s.input} />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={s.label}>Email</label>
+              <label style={s.label}>Email empresa</label>
               <input value={empresaEditar.email ?? ''} onChange={(ev) => setEmpresaEditar({ ...empresaEditar, email: ev.target.value })}
                 style={s.input} />
             </div>
           </div>
+
+          <label style={s.label}>Dirección</label>
+          <input value={(empresaEditar as any).direccion ?? ''} onChange={(ev) => setEmpresaEditar({ ...empresaEditar, direccion: ev.target.value } as any)}
+            placeholder="Opcional" style={s.input} />
 
           <label style={s.label}>Plan</label>
           <select value={empresaEditar.plan} onChange={(ev) => setEmpresaEditar({ ...empresaEditar, plan: ev.target.value })} style={s.input}>
@@ -302,6 +355,43 @@ export default function PaginaClientes() {
           <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '4px' }}>
             Al cambiar el plan, el límite de dispositivos se ajusta solo.
           </div>
+
+          {/* --- USUARIO ADMINISTRADOR DEL CLIENTE --- */}
+          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--azul-brillante)', margin: '22px 0 8px' }}>
+            USUARIO QUE INGRESA AL SISTEMA
+          </div>
+
+          {adminCliente ? (
+            <>
+              <label style={s.label}>Nombre del usuario</label>
+              <input value={adminCliente.nombre} onChange={(ev) => setAdminCliente({ ...adminCliente, nombre: ev.target.value })}
+                style={s.input} />
+
+              <label style={s.label}>Email de ingreso (con este entra al sistema)</label>
+              <input value={adminCliente.email} onChange={(ev) => setAdminCliente({ ...adminCliente, email: ev.target.value })}
+                style={s.input} />
+
+              <label style={s.label}>Resetear contraseña</label>
+              <input value={passwordNueva} onChange={(ev) => setPasswordNueva(ev.target.value)}
+                placeholder="Dejá vacío para no cambiarla" style={s.input} />
+              <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '4px' }}>
+                Escribí una contraseña nueva solo si el cliente la olvidó. Mínimo 6 caracteres.
+                Por seguridad, la contraseña actual no se puede ver.
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: '13px', color: 'var(--texto-tenue)', padding: '8px 0' }}>
+              Cargando usuario...
+            </div>
+          )}
+
+          {mensajeEdit && (
+            <div style={{
+              marginTop: '14px', padding: '10px 12px', borderRadius: '8px', fontSize: '13px',
+              background: mensajeEdit.tipo === 'ok' ? 'rgba(34,217,122,0.15)' : 'rgba(255,77,94,0.15)',
+              color: mensajeEdit.tipo === 'ok' ? 'var(--verde-online)' : 'var(--rojo-offline)',
+            }}>{mensajeEdit.texto}</div>
+          )}
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '24px', justifyContent: 'flex-end' }}>
             <button onClick={() => setModalEditar(false)} style={s.botonChico}>Cancelar</button>
