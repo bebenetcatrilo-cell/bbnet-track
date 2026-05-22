@@ -40,7 +40,7 @@ export default function Sidebar({ empresa, rol }: { empresa: string; rol?: strin
   const [esCelular, setEsCelular] = useState(false);
   const [abierto, setAbierto] = useState(false); // solo aplica en celular
 
-  const itemsVisibles = rol === 'super_admin' ? [...items, ...itemsSuperAdmin] : items;
+  const esSuperAdmin = rol === 'super_admin';
 
   // Detectar tamaño de pantalla
   useEffect(() => {
@@ -64,6 +64,35 @@ export default function Sidebar({ empresa, rol }: { empresa: string; rol?: strin
     if (item.proximo) return;
     router.push(item.href);
     setAbierto(false); // en celular, cerrar el menú al elegir
+  }
+
+  // Dibuja un botón del menú (se usa para las secciones normales y las de admin)
+  function renderBoton(item: { href: string; label: string; icono: string; proximo: boolean }) {
+    const activo = pathname === item.href;
+    return (
+      <button
+        key={item.href}
+        onClick={() => irA(item)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '12px',
+          padding: '11px 12px', borderRadius: '10px', border: 'none',
+          background: activo ? 'var(--azul-electrico)' : 'transparent',
+          color: activo ? '#fff' : item.proximo ? 'var(--texto-tenue)' : 'var(--texto-suave)',
+          fontSize: '14px', fontWeight: activo ? 600 : 500,
+          textAlign: 'left', width: '100%',
+          cursor: item.proximo ? 'default' : 'pointer', transition: 'background 0.15s',
+        }}
+      >
+        <span style={{ width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icono nombre={item.icono} size={20} /></span>
+        <span style={{ flex: 1 }}>{item.label}</span>
+        {item.proximo && (
+          <span style={{
+            fontSize: '9px', background: 'var(--gris-medio)', color: 'var(--texto-tenue)',
+            padding: '2px 6px', borderRadius: '6px', fontWeight: 600,
+          }}>PRONTO</span>
+        )}
+      </button>
+    );
   }
 
   // El menú en sí (se reutiliza en compu y celular)
@@ -104,34 +133,27 @@ export default function Sidebar({ empresa, rol }: { empresa: string; rol?: strin
 
       {/* Navegación */}
       <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-        {itemsVisibles.map((item) => {
-          const activo = pathname === item.href;
-          return (
-            <button
-              key={item.href}
-              onClick={() => irA(item)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '11px 12px', borderRadius: '10px', border: 'none',
-                background: activo ? 'var(--azul-electrico)' : 'transparent',
-                color: activo ? '#fff' : item.proximo ? 'var(--texto-tenue)' : 'var(--texto-suave)',
-                fontSize: '14px', fontWeight: activo ? 600 : 500,
-                textAlign: 'left', width: '100%',
-                cursor: item.proximo ? 'default' : 'pointer', transition: 'background 0.15s',
-              }}
-            >
-              <span style={{ width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icono nombre={item.icono} size={20} /></span>
-              <span style={{ flex: 1 }}>{item.label}</span>
-              {item.proximo && (
-                <span style={{
-                  fontSize: '9px', background: 'var(--gris-medio)', color: 'var(--texto-tenue)',
-                  padding: '2px 6px', borderRadius: '6px', fontWeight: 600,
-                }}>PRONTO</span>
-              )}
-            </button>
-          );
-        })}
+        {/* Secciones normales (las ven todos) */}
+        {items.map((item) => renderBoton(item))}
+
+        {/* Separador de zona ADMINISTRACIÓN (solo super_admin) */}
+        {esSuperAdmin && (
+          <>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              margin: '16px 4px 6px', 
+            }}>
+              <span style={{
+                fontSize: '10px', fontWeight: 700, letterSpacing: '1px',
+                color: 'var(--texto-tenue)', textTransform: 'uppercase', whiteSpace: 'nowrap',
+              }}>Administración</span>
+              <span style={{ flex: 1, height: '1px', background: 'var(--gris-borde)' }} />
+            </div>
+            {itemsSuperAdmin.map((item) => renderBoton(item))}
+          </>
+        )}
       </nav>
+
 
       {/* Salir */}
       <button
