@@ -108,7 +108,7 @@ export default function MapaServicio({ companyId }: { companyId: string }) {
             iconSize: [22, 22], iconAnchor: [11, 11],
           }),
         }).addTo(mapa);
-        marcador.bindPopup(`<b>${v.nombre}</b><br/>${Math.round(ult.velocidad ?? 0)} km/h<br/>${new Date(ult.fecha_gps).toLocaleString('es-AR')}`);
+        marcador.bindPopup(`<b>${v.nombre}</b><br/>${Math.round(ult.velocidad ?? 0)} km/h<br/>${new Date(ult.fecha_gps).toLocaleString('es-AR', { hour12: false })}`);
         marcadoresRef.current[v.id] = marcador;
         puntos.push([ult.latitud, ult.longitud]);
       }

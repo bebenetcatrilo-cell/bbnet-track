@@ -12,21 +12,22 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
+import Icono from './Icono';
 
 const items = [
-  { href: '/dashboard', label: 'Dashboard', icono: '▦', proximo: false },
-  { href: '/dashboard/mapa', label: 'Mapa en vivo', icono: '◎', proximo: false },
-  { href: '/dashboard/vehiculos', label: 'Vehículos', icono: '⊞', proximo: false },
-  { href: '/dashboard/historial', label: 'Historial', icono: '↻', proximo: false },
-  { href: '/dashboard/dispositivos', label: 'Dispositivos', icono: '⊡', proximo: false },
-  { href: '/dashboard/reportes', label: 'Reportes', icono: '◈', proximo: false },
+  { href: '/dashboard', label: 'Dashboard', icono: 'dashboard', proximo: false },
+  { href: '/dashboard/mapa', label: 'Mapa en vivo', icono: 'mapa', proximo: false },
+  { href: '/dashboard/vehiculos', label: 'Vehículos', icono: 'vehiculos', proximo: false },
+  { href: '/dashboard/historial', label: 'Historial', icono: 'historial', proximo: false },
+  { href: '/dashboard/dispositivos', label: 'Dispositivos', icono: 'dispositivos', proximo: false },
+  { href: '/dashboard/reportes', label: 'Reportes', icono: 'reportes', proximo: false },
 ];
 
 const itemsSuperAdmin = [
-  { href: '/dashboard/clientes', label: 'Clientes', icono: '🏢', proximo: false },
-  { href: '/dashboard/planes', label: 'Planes', icono: '💳', proximo: false },
-  { href: '/dashboard/cobranza', label: 'Cobranza', icono: '💰', proximo: false },
-  { href: '/dashboard/servicio', label: 'Servicio', icono: '🛠️', proximo: false },
+  { href: '/dashboard/clientes', label: 'Clientes', icono: 'clientes', proximo: false },
+  { href: '/dashboard/planes', label: 'Planes', icono: 'planes', proximo: false },
+  { href: '/dashboard/cobranza', label: 'Cobranza', icono: 'cobranza', proximo: false },
+  { href: '/dashboard/servicio', label: 'Servicio', icono: 'servicio', proximo: false },
 ];
 
 const ANCHO_CELULAR = 768;
@@ -119,7 +120,7 @@ export default function Sidebar({ empresa, rol }: { empresa: string; rol?: strin
                 cursor: item.proximo ? 'default' : 'pointer', transition: 'background 0.15s',
               }}
             >
-              <span style={{ fontSize: '17px', width: '20px', textAlign: 'center' }}>{item.icono}</span>
+              <span style={{ width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icono nombre={item.icono} size={20} /></span>
               <span style={{ flex: 1 }}>{item.label}</span>
               {item.proximo && (
                 <span style={{

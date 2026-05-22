@@ -186,7 +186,7 @@ export default function MapaEnVivo() {
         <div style="font-size:12px;color:#555">
           Velocidad: <b>${Math.round(p.velocidad)} km/h</b><br/>
           Batería: <b>${bateriaTxt}</b><br/>
-          Última: <b>${new Date(p.fecha_gps).toLocaleTimeString('es-AR')}</b>
+          Última: <b>${new Date(p.fecha_gps).toLocaleTimeString('es-AR', { hour12: false })}</b>
         </div>
       </div>`;
 

@@ -21,24 +21,14 @@ const MapaEnVivo = dynamic(() => import('@/components/MapaEnVivo'), {
   ),
 });
 
-const SimuladorMovimiento = dynamic(() => import('@/components/SimuladorMovimiento'), {
-  ssr: false,
-});
-
 export default function PaginaMapa() {
   return (
     <div>
-      <div style={{
-        marginBottom: '20px', display: 'flex', alignItems: 'flex-start',
-        justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px',
-      }}>
-        <div>
-          <h1 style={{ fontSize: '26px', fontWeight: 700, letterSpacing: '-0.5px' }}>Mapa en vivo</h1>
-          <p style={{ color: 'var(--texto-suave)', fontSize: '14px', marginTop: '4px' }}>
-            Posición de tus vehículos en tiempo real
-          </p>
-        </div>
-        <SimuladorMovimiento />
+      <div style={{ marginBottom: '20px' }}>
+        <h1 style={{ fontSize: '26px', fontWeight: 700, letterSpacing: '-0.5px' }}>Mapa en vivo</h1>
+        <p style={{ color: 'var(--texto-suave)', fontSize: '14px', marginTop: '4px' }}>
+          Posición de tus vehículos en tiempo real
+        </p>
       </div>
       <MapaEnVivo />
     </div>
