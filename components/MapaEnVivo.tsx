@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
+import { getMiCompanyId } from '@/lib/mi-empresa';
 
 type Posicion = {
   vehicle_id: string;
@@ -129,9 +130,12 @@ export default function MapaEnVivo() {
   // 2) Traer la última posición de cada vehículo
   // -------------------------------------------------------------------------
   async function cargarPosicionesIniciales() {
+    // Solo las posiciones de NUESTRA empresa (los clientes se ven en Servicio)
+    const miEmpresa = await getMiCompanyId();
     const { data, error } = await supabase
       .from('locations')
       .select('vehicle_id, latitud, longitud, velocidad, bateria, fecha_gps, vehicles(nombre)')
+      .eq('company_id', miEmpresa)
       .order('fecha_gps', { ascending: false })
       .limit(200);
 
@@ -213,6 +217,10 @@ export default function MapaEnVivo() {
         { event: 'INSERT', schema: 'public', table: 'locations' },
         async (payload) => {
           const nueva = payload.new as any;
+
+          // Solo procesamos posiciones de NUESTRA empresa
+          const miEmpresa = await getMiCompanyId();
+          if (nueva.company_id !== miEmpresa) return;
 
           const { data: veh } = await supabase
             .from('vehicles')
