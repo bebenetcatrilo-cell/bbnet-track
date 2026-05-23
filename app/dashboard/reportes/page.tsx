@@ -210,21 +210,16 @@ export default function PaginaReportes() {
     if (vista === 'flota') {
       const { data: vehs } = await supabase
         .from('vehicles').select('id, nombre').eq('company_id', miEmpresa).order('nombre');
-      const posiciones = await traerTodas('company_id', miEmpresa as string, desde, hasta);
-
       const listaVeh = vehs ?? [];
 
-      const porVehiculo: { [id: string]: Punto[] } = {};
-      for (const p of posiciones) {
-        if (!p.vehicle_id) continue;
-        (porVehiculo[p.vehicle_id] ??= []).push(p);
-      }
-
-      const resultado: ResumenVehiculo[] = listaVeh.map((v: any) => {
-        const pts = porVehiculo[v.id] ?? [];
+      // Calculamos vehículo por vehículo (cada uno trae SUS posiciones por separado).
+      // Así es imposible que las posiciones de un vehículo "tapen" a las de otro.
+      const resultado: ResumenVehiculo[] = [];
+      for (const v of listaVeh as any[]) {
+        const pts = await traerTodas('vehicle_id', v.id, desde, hasta);
         const calc = calcularDeLista(pts);
-        return { id: v.id, nombre: v.nombre, ...calc };
-      });
+        resultado.push({ id: v.id, nombre: v.nombre, ...calc });
+      }
       resultado.sort((a, b) => b.km - a.km);
       setFilas(resultado);
       setKmPorDia([]);
