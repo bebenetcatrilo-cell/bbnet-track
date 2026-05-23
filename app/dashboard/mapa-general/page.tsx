@@ -63,19 +63,31 @@ export default function PaginaMapaGeneral() {
         </p>
       </div>
 
-      {/* Filtro por cliente */}
+      {/* Filtro: botón "Ver todos" + selector de cliente */}
       <div style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        <label style={{ fontSize: '13px', color: 'var(--texto-suave)', fontWeight: 500 }}>Filtrar por cliente:</label>
+        <button
+          onClick={() => setFiltroEmpresa('')}
+          style={{
+            background: filtroEmpresa === '' ? 'var(--azul-electrico)' : 'var(--gris-oscuro)',
+            border: '1px solid ' + (filtroEmpresa === '' ? 'var(--azul-electrico)' : 'var(--gris-borde)'),
+            borderRadius: '9px', padding: '10px 16px',
+            color: filtroEmpresa === '' ? '#fff' : 'var(--texto)',
+            fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          🗺️ Ver todos
+        </button>
+        <span style={{ fontSize: '13px', color: 'var(--texto-tenue)' }}>o filtrar por cliente:</span>
         <select
           value={filtroEmpresa}
           onChange={(e) => setFiltroEmpresa(e.target.value)}
           style={{
             background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
             borderRadius: '9px', padding: '10px 14px', color: 'var(--texto)', fontSize: '14px',
-            minWidth: '260px',
+            minWidth: '240px',
           }}
         >
-          <option value="">Todos los clientes</option>
+          <option value="">— Elegí un cliente —</option>
           {empresas.map((e) => (
             <option key={e.id} value={e.id}>{e.nombre}</option>
           ))}
