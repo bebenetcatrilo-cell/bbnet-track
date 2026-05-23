@@ -173,25 +173,46 @@ export default function PaginaReportes() {
     return { desde, hasta };
   }
 
+  // Trae TODAS las posiciones en tandas de 1000 (Supabase limita a 1000 por consulta).
+  // columna: 'company_id' (vista flota) o 'vehicle_id' (vista un vehículo).
+  async function traerTodas(
+    columna: 'company_id' | 'vehicle_id',
+    valor: string,
+    desde: Date,
+    hasta: Date
+  ): Promise<Punto[]> {
+    const TANDA = 1000;
+    let pagina = 0;
+    let todas: Punto[] = [];
+    while (true) {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('vehicle_id, latitud, longitud, velocidad, fecha_gps')
+        .eq(columna, valor)
+        .gte('fecha_gps', desde.toISOString())
+        .lte('fecha_gps', hasta.toISOString())
+        .order('fecha_gps', { ascending: true })
+        .range(pagina * TANDA, pagina * TANDA + TANDA - 1);
+      if (error || !data || data.length === 0) break;
+      todas = todas.concat(data as Punto[]);
+      if (data.length < TANDA) break; // era la última tanda
+      pagina++;
+      if (pagina > 200) break; // tope de seguridad (200.000 posiciones)
+    }
+    return todas;
+  }
+
   async function calcular() {
     setCargando(true);
     const miEmpresa = await getMiCompanyId();
     const { desde, hasta } = rangoFechas();
 
     if (vista === 'flota') {
-      const [{ data: vehs }, { data: locs }] = await Promise.all([
-        supabase.from('vehicles').select('id, nombre').eq('company_id', miEmpresa).order('nombre'),
-        supabase
-          .from('locations')
-          .select('vehicle_id, latitud, longitud, velocidad, fecha_gps')
-          .eq('company_id', miEmpresa)
-          .gte('fecha_gps', desde.toISOString())
-          .lte('fecha_gps', hasta.toISOString())
-          .order('fecha_gps', { ascending: true }),
-      ]);
+      const { data: vehs } = await supabase
+        .from('vehicles').select('id, nombre').eq('company_id', miEmpresa).order('nombre');
+      const posiciones = await traerTodas('company_id', miEmpresa as string, desde, hasta);
 
       const listaVeh = vehs ?? [];
-      const posiciones = (locs ?? []) as Punto[];
 
       const porVehiculo: { [id: string]: Punto[] } = {};
       for (const p of posiciones) {
@@ -214,15 +235,7 @@ export default function PaginaReportes() {
         setCargando(false);
         return;
       }
-      const { data: locs } = await supabase
-        .from('locations')
-        .select('vehicle_id, latitud, longitud, velocidad, fecha_gps')
-        .eq('vehicle_id', vehiculoSel)
-        .gte('fecha_gps', desde.toISOString())
-        .lte('fecha_gps', hasta.toISOString())
-        .order('fecha_gps', { ascending: true });
-
-      const pts = (locs ?? []) as Punto[];
+      const pts = await traerTodas('vehicle_id', vehiculoSel, desde, hasta);
       const veh = vehiculos.find((v) => v.id === vehiculoSel);
       const calc = calcularDeLista(pts);
       setFilas([{ id: vehiculoSel, nombre: veh?.nombre ?? 'Vehículo', ...calc }]);
