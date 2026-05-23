@@ -99,14 +99,30 @@ export default function MapaHistorial({ puntos, paradas, vista }: Props) {
 
     if (puntos.length === 0) return;
 
-    // La línea del recorrido
+    // ---- La línea del recorrido, coloreada por velocidad ----
+    // En vez de una sola línea, dibujamos muchos tramitos cortos (de un punto al
+    // siguiente), cada uno pintado del color que corresponde a su velocidad.
+    // Así el recorrido muestra de un vistazo dónde fue rápido y dónde lento.
+    for (let i = 1; i < puntos.length; i++) {
+      const ant = puntos[i - 1];
+      const act = puntos[i];
+      // Usamos la velocidad del punto actual para colorear el tramo
+      const color = colorPorVelocidad(act.velocidad ?? 0);
+      grupo.addLayer(
+        L.polyline(
+          [
+            [ant.latitud, ant.longitud],
+            [act.latitud, act.longitud],
+          ],
+          { color, weight: 4, opacity: 0.9 }
+        )
+      );
+    }
+
+    // Una línea invisible que une todo, solo para calcular el zoom (fitBounds)
     const coords = puntos.map((p) => [p.latitud, p.longitud]);
-    const linea = L.polyline(coords, {
-      color: '#0066ff',
-      weight: 4,
-      opacity: 0.85,
-    });
-    grupo.addLayer(linea);
+    const lineaCompleta = L.polyline(coords, { opacity: 0 });
+    grupo.addLayer(lineaCompleta);
 
     // Marcador de INICIO (verde)
     const inicio = puntos[0];
@@ -137,7 +153,23 @@ export default function MapaHistorial({ puntos, paradas, vista }: Props) {
     });
 
     // Ajustar el zoom para que se vea todo el recorrido
-    mapa.fitBounds(linea.getBounds(), { padding: [40, 40] });
+    mapa.fitBounds(lineaCompleta.getBounds(), { padding: [40, 40] });
+  }
+
+  // Elige el color del tramo según la velocidad (km/h), escala estándar:
+  //   0       → gris    (detenido)
+  //   1–20    → azul    (muy lento)
+  //   20–60   → verde   (normal urbano)
+  //   60–90   → amarillo(ruta normal)
+  //   90–120  → naranja (alta velocidad)
+  //   +120    → rojo    (exceso de velocidad)
+  function colorPorVelocidad(vel: number): string {
+    if (vel <= 0) return '#8b97aa';   // gris
+    if (vel < 20) return '#2d8bff';   // azul
+    if (vel < 60) return '#22d97a';   // verde
+    if (vel < 90) return '#ffd11a';   // amarillo
+    if (vel < 120) return '#ff8c1a';  // naranja
+    return '#ff4d5e';                 // rojo
   }
 
   // Crea un iconito circular de color con una letra adentro
@@ -157,5 +189,35 @@ export default function MapaHistorial({ puntos, paradas, vista }: Props) {
     });
   }
 
-  return <div ref={contenedorRef} style={{ width: '100%', height: '100%' }} />;
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div ref={contenedorRef} style={{ width: '100%', height: '100%' }} />
+      {/* Leyenda de colores por velocidad */}
+      {puntos.length > 0 && (
+        <div style={{
+          position: 'absolute', bottom: '14px', left: '14px', zIndex: 1000,
+          background: 'rgba(19,24,34,0.92)', border: '1px solid #2a3444',
+          borderRadius: '10px', padding: '10px 12px',
+          boxShadow: '0 4px 14px rgba(0,0,0,0.4)', fontFamily: 'system-ui',
+        }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#e6edf7', marginBottom: '7px' }}>
+            Velocidad
+          </div>
+          {[
+            { c: '#8b97aa', t: 'Detenido' },
+            { c: '#2d8bff', t: '1–20 km/h' },
+            { c: '#22d97a', t: '20–60 km/h' },
+            { c: '#ffd11a', t: '60–90 km/h' },
+            { c: '#ff8c1a', t: '90–120 km/h' },
+            { c: '#ff4d5e', t: '+120 km/h' },
+          ].map((item) => (
+            <div key={item.t} style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '3px' }}>
+              <span style={{ width: '14px', height: '4px', borderRadius: '2px', background: item.c, display: 'inline-block' }} />
+              <span style={{ fontSize: '11px', color: '#8b97aa' }}>{item.t}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
