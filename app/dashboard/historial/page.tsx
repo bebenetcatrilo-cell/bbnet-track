@@ -64,17 +64,30 @@ export default function PaginaHistorial() {
       if (!vehiculoId) { setDiasConDatos(new Set()); return; }
       const inicio = new Date(mesCalendario.getFullYear(), mesCalendario.getMonth(), 1);
       const fin = new Date(mesCalendario.getFullYear(), mesCalendario.getMonth() + 1, 0, 23, 59, 59);
-      const { data } = await supabase
-        .from('locations')
-        .select('fecha_gps')
-        .eq('vehicle_id', vehiculoId)
-        .gte('fecha_gps', inicio.toISOString())
-        .lte('fecha_gps', fin.toISOString());
+
+      // Traemos las fechas en tandas de 1000 (Supabase limita a 1000 por consulta).
+      // Solo pedimos la columna fecha_gps, que es liviana, para saber qué días
+      // tienen recorrido y marcarlos con el puntito en el calendario.
+      const TANDA = 1000;
+      let pagina = 0;
       const dias = new Set<string>();
-      (data ?? []).forEach((r: any) => {
-        // Guardamos cada día (YYYY-MM-DD) que tenga al menos una posición
-        dias.add(new Date(r.fecha_gps).toISOString().slice(0, 10));
-      });
+      while (true) {
+        const { data, error } = await supabase
+          .from('locations')
+          .select('fecha_gps')
+          .eq('vehicle_id', vehiculoId)
+          .gte('fecha_gps', inicio.toISOString())
+          .lte('fecha_gps', fin.toISOString())
+          .order('fecha_gps', { ascending: true })
+          .range(pagina * TANDA, pagina * TANDA + TANDA - 1);
+        if (error || !data || data.length === 0) break;
+        data.forEach((r: any) => {
+          dias.add(new Date(r.fecha_gps).toISOString().slice(0, 10));
+        });
+        if (data.length < TANDA) break;
+        pagina++;
+        if (pagina > 200) break; // tope de seguridad
+      }
       setDiasConDatos(dias);
     }
     cargarDiasConDatos();
@@ -93,6 +106,33 @@ export default function PaginaHistorial() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Trae TODAS las posiciones de un vehículo en un día, en tandas de 1000.
+  // Supabase devuelve máximo 1000 filas por consulta, así que paginamos para
+  // no perder posiciones en días con mucho recorrido (más de 1000 puntos).
+  async function traerPosiciones(vehId: string, dia: string): Promise<Punto[]> {
+    const TANDA = 1000;
+    const desde = `${dia}T00:00:00`;
+    const hasta = `${dia}T23:59:59`;
+    let pagina = 0;
+    let todas: Punto[] = [];
+    while (true) {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('latitud, longitud, velocidad, fecha_gps')
+        .eq('vehicle_id', vehId)
+        .gte('fecha_gps', desde)
+        .lte('fecha_gps', hasta)
+        .order('fecha_gps', { ascending: true })
+        .range(pagina * TANDA, pagina * TANDA + TANDA - 1);
+      if (error || !data || data.length === 0) break;
+      todas = todas.concat(data as Punto[]);
+      if (data.length < TANDA) break; // era la última tanda
+      pagina++;
+      if (pagina > 200) break; // tope de seguridad
+    }
+    return todas;
+  }
+
   // Buscar el recorrido
   async function buscar() {
     if (!vehiculoId) {
@@ -102,19 +142,7 @@ export default function PaginaHistorial() {
     setBuscando(true);
     setYaBuscado(true);
 
-    // El día va de las 00:00 a las 23:59
-    const desde = `${fecha}T00:00:00`;
-    const hasta = `${fecha}T23:59:59`;
-
-    const { data } = await supabase
-      .from('locations')
-      .select('latitud, longitud, velocidad, fecha_gps')
-      .eq('vehicle_id', vehiculoId)
-      .gte('fecha_gps', desde)
-      .lte('fecha_gps', hasta)
-      .order('fecha_gps', { ascending: true });
-
-    const pts = (data ?? []) as Punto[];
+    const pts = await traerPosiciones(vehiculoId, fecha);
     setPuntos(pts);
     setParadas(calcularParadas(pts));
     setBuscando(false);
@@ -155,14 +183,7 @@ export default function PaginaHistorial() {
     if (!vehiculoId) return;
     setBuscando(true);
     setYaBuscado(true);
-    const { data } = await supabase
-      .from('locations')
-      .select('latitud, longitud, velocidad, fecha_gps')
-      .eq('vehicle_id', vehiculoId)
-      .gte('fecha_gps', `${f}T00:00:00`)
-      .lte('fecha_gps', `${f}T23:59:59`)
-      .order('fecha_gps', { ascending: true });
-    const pts = (data ?? []) as Punto[];
+    const pts = await traerPosiciones(vehiculoId, f);
     setPuntos(pts);
     setParadas(calcularParadas(pts));
     setBuscando(false);
