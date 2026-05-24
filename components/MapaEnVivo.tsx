@@ -22,6 +22,7 @@ type Posicion = {
   velocidad: number;
   bateria: number | null;
   fecha_gps: string;
+  icono?: string;
 };
 
 // Las dos "capas" de fondo disponibles
@@ -134,7 +135,7 @@ export default function MapaEnVivo() {
     const miEmpresa = await getMiCompanyId();
     const { data, error } = await supabase
       .from('locations')
-      .select('vehicle_id, latitud, longitud, velocidad, bateria, fecha_gps, vehicles(nombre)')
+      .select('vehicle_id, latitud, longitud, velocidad, bateria, fecha_gps, vehicles(nombre, icono)')
       .eq('company_id', miEmpresa)
       .order('fecha_gps', { ascending: false })
       .limit(200);
@@ -154,6 +155,7 @@ export default function MapaEnVivo() {
           velocidad: fila.velocidad ?? 0,
           bateria: fila.bateria,
           fecha_gps: fila.fecha_gps,
+          icono: fila.vehicles?.icono ?? 'auto',
         };
       }
     }
@@ -163,24 +165,39 @@ export default function MapaEnVivo() {
     lista.forEach(dibujarOActualizarMarcador);
   }
 
+  // Devuelve la imagen del vehículo según su tipo de ícono.
+  // Las imágenes están en public/iconos/ (auto.png, camioneta.png, camion.png, moto.png)
+  function imgIcono(tipo: string): string {
+    const validos = ['auto', 'camioneta', 'camion', 'moto'];
+    const t = validos.includes(tipo) ? tipo : 'auto';
+    return `<img src="/iconos/${t}.png" style="width:20px;height:20px;display:block;" />`;
+  }
+
   // -------------------------------------------------------------------------
-  // 3) Dibujar o mover el puntito de un vehículo
+  // 3) Dibujar o mover el marcador de un vehículo
   // -------------------------------------------------------------------------
   function dibujarOActualizarMarcador(p: Posicion) {
     const L = LRef.current;
     const mapa = mapaRef.current;
     if (!L || !mapa) return;
 
+    // ¿Está online? Si la última posición es de hace menos de 5 minutos, sí.
+    const minutosDesde = (Date.now() - new Date(p.fecha_gps).getTime()) / 60000;
+    const online = minutosDesde < 5;
+    const colorCirculo = online ? '#22d97a' : '#ff4d5e'; // verde / rojo
+    const glow = online ? 'rgba(34,217,122,0.35)' : 'rgba(255,77,94,0.30)';
+
     const icono = L.divIcon({
       className: '',
       html: `
         <div style="
-          width:18px;height:18px;border-radius:50%;
-          background:#0066ff;border:3px solid #fff;
-          box-shadow:0 0 0 4px rgba(0,102,255,0.35), 0 2px 8px rgba(0,0,0,0.4);
-        "></div>`,
-      iconSize: [18, 18],
-      iconAnchor: [9, 9],
+          width:34px;height:34px;border-radius:50%;
+          background:${colorCirculo};border:3px solid #fff;
+          box-shadow:0 0 0 4px ${glow}, 0 2px 8px rgba(0,0,0,0.4);
+          display:flex;align-items:center;justify-content:center;
+        ">${imgIcono(p.icono ?? 'auto')}</div>`,
+      iconSize: [34, 34],
+      iconAnchor: [17, 17],
     });
 
     const bateriaTxt = p.bateria != null ? `${p.bateria}%` : '—';
@@ -198,6 +215,7 @@ export default function MapaEnVivo() {
     if (existente) {
       existente.setLatLng([p.latitud, p.longitud]);
       existente.setPopupContent(popup);
+      existente.setIcon(icono);
     } else {
       const marcador = L.marker([p.latitud, p.longitud], { icon: icono })
         .addTo(mapa)
