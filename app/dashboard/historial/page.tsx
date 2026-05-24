@@ -227,24 +227,39 @@ export default function PaginaHistorial() {
         )
       : 0;
 
-  // Detectar paradas: cuando el vehículo se queda casi quieto varios puntos seguidos
+  // Detectar paradas: cuando el vehículo se queda casi quieto varios puntos seguidos.
+  // Pensado para tolerar el "baile" del GPS de celular (que salta de velocidad y de
+  // posición unos metros aunque el auto esté parado).
   function calcularParadas(pts: Punto[]): Parada[] {
     const resultado: Parada[] = [];
     if (pts.length < 3) return resultado;
 
-    const UMBRAL_VEL = 3; // km/h: por debajo de esto consideramos "quieto"
-    const MIN_MINUTOS = 2; // tiene que estar quieto al menos 2 minutos para contar como parada
+    const UMBRAL_VEL = 7;      // km/h: por debajo de esto consideramos "quieto" (antes 3)
+    const MIN_MINUTOS = 3;     // tiene que estar quieto al menos 3 minutos para contar
+    const METROS_ALEJARSE = 60; // tiene que alejarse al menos 60m del punto de parada para que "arranque" de verdad
 
     let inicioParada: number | null = null;
 
     for (let i = 0; i < pts.length; i++) {
-      const quieto = (pts[i].velocidad ?? 0) < UMBRAL_VEL;
+      const vel = pts[i].velocidad ?? 0;
 
-      if (quieto && inicioParada === null) {
-        inicioParada = i;
-      } else if (!quieto && inicioParada !== null) {
-        cerrarParada(pts, inicioParada, i - 1, resultado, MIN_MINUTOS);
-        inicioParada = null;
+      if (inicioParada === null) {
+        // No estamos en una parada: si se queda quieto, arranca una posible parada
+        if (vel < UMBRAL_VEL) inicioParada = i;
+      } else {
+        // Estamos en una parada. Para considerar que "arrancó" de verdad, no alcanza
+        // con que la velocidad suba un toque: tiene que ALEJARSE físicamente del lugar.
+        // Así los saltitos del GPS del celular no cortan la parada.
+        const dist = distanciaKm(
+          pts[inicioParada].latitud, pts[inicioParada].longitud,
+          pts[i].latitud, pts[i].longitud
+        ) * 1000; // en metros
+
+        if (vel >= UMBRAL_VEL && dist >= METROS_ALEJARSE) {
+          // Arrancó de verdad: cerramos la parada en el punto anterior
+          cerrarParada(pts, inicioParada, i - 1, resultado, MIN_MINUTOS);
+          inicioParada = null;
+        }
       }
     }
     // Si terminó quieto
