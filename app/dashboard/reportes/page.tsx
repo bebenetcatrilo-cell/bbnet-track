@@ -54,8 +54,9 @@ const PERIODOS = [
   { valor: '30', etiqueta: 'Último mes' },
 ];
 
-const UMBRAL_VEL = 3;     // km/h: por debajo de esto, "quieto"
-const MIN_MINUTOS = 2;    // minutos quieto para contar como parada
+const UMBRAL_VEL = 7;     // km/h: por debajo de esto, "quieto" (tolera baile del celular)
+const MIN_MINUTOS = 3;    // minutos quieto para contar como parada
+const METROS_ALEJARSE = 60; // metros que hay que alejarse para considerar que arrancó
 
 export default function PaginaReportes() {
   const supabase = createClient();
@@ -111,12 +112,19 @@ export default function PaginaReportes() {
         }
       }
 
-      const quieto = vel < UMBRAL_VEL;
-      if (quieto && inicioParada === null) {
-        inicioParada = i;
-      } else if (!quieto && inicioParada !== null) {
-        if (esParada(pts, inicioParada, i - 1)) paradas++;
-        inicioParada = null;
+      // Detección de paradas (igual criterio que el Historial): para cortar una
+      // parada no alcanza con que suba la velocidad, tiene que ALEJARSE de verdad.
+      if (inicioParada === null) {
+        if (vel < UMBRAL_VEL) inicioParada = i;
+      } else {
+        const dist = distanciaKm(
+          pts[inicioParada].latitud, pts[inicioParada].longitud,
+          pts[i].latitud, pts[i].longitud
+        ) * 1000; // metros
+        if (vel >= UMBRAL_VEL && dist >= METROS_ALEJARSE) {
+          if (esParada(pts, inicioParada, i - 1)) paradas++;
+          inicioParada = null;
+        }
       }
     }
     if (inicioParada !== null && esParada(pts, inicioParada, pts.length - 1)) paradas++;
