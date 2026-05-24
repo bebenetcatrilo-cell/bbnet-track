@@ -276,13 +276,128 @@ export default function PaginaReportes() {
     ? `${fechaDesde.split('-').reverse().join('/')} al ${fechaHasta.split('-').reverse().join('/')}`
     : PERIODOS.find((p) => p.valor === periodo)?.etiqueta ?? '';
 
+  // ---- Exportar a PDF (usando la impresión del navegador) ----
+  // Arma una página HTML limpia con el logo de BBNet, los datos del período y el
+  // contenido según la solapa (flota = tabla / vehículo = detalle), y abre el
+  // diálogo de impresión, donde el usuario elige "Guardar como PDF".
+  function exportarPDF() {
+    const fecha = new Date().toLocaleDateString('es-AR');
+    const titulo = vista === 'flota'
+      ? 'Reporte de flota'
+      : `Reporte de ${unico?.nombre ?? 'vehículo'}`;
+
+    // Logo de BBNet (pin de ubicación, igual al del login) + nombre
+    const logo = `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:40px;height:40px;border-radius:10px;background:#0066ff;display:flex;align-items:center;justify-content:center;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+            <circle cx="12" cy="9" r="2.5" stroke="#fff" stroke-width="2"/>
+          </svg>
+        </div>
+        <div>
+          <div style="font-size:20px;font-weight:800;color:#0066ff;letter-spacing:-0.5px;">BBNet Track</div>
+          <div style="font-size:11px;color:#888;">Sistema de rastreo GPS</div>
+        </div>
+      </div>`;
+
+    // Cuerpo según la solapa
+    let cuerpo = '';
+    if (vista === 'flota') {
+      const filasHtml = filas.map((f) => `
+        <tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;font-weight:600;">${f.nombre}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">${f.km.toFixed(1)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">${Math.round(f.velMax)} km/h</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">${f.paradas}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">${formatHoras(f.minMovimiento)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">${formatHoras(f.minDetenido)}</td>
+        </tr>`).join('');
+      cuerpo = `
+        <div style="margin:18px 0;display:flex;gap:24px;flex-wrap:wrap;">
+          <div><div style="font-size:22px;font-weight:800;color:#0066ff;">${kmTotal.toFixed(1)} km</div><div style="font-size:11px;color:#888;">Km totales</div></div>
+          <div><div style="font-size:22px;font-weight:800;color:#c0392b;">${Math.round(velMaxFlota)} km/h</div><div style="font-size:11px;color:#888;">Velocidad máxima</div></div>
+          <div><div style="font-size:22px;font-weight:800;color:#2e7d32;">${vehiculosConActividad}</div><div style="font-size:11px;color:#888;">Vehículos con actividad</div></div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;">
+          <thead><tr style="background:#f5f5f5;">
+            <th style="padding:8px 10px;text-align:left;">Vehículo</th>
+            <th style="padding:8px 10px;text-align:right;">Km</th>
+            <th style="padding:8px 10px;text-align:right;">Vel. máx</th>
+            <th style="padding:8px 10px;text-align:right;">Paradas</th>
+            <th style="padding:8px 10px;text-align:right;">En movim.</th>
+            <th style="padding:8px 10px;text-align:right;">Detenido</th>
+          </tr></thead>
+          <tbody>${filasHtml}</tbody>
+        </table>`;
+    } else if (unico) {
+      const barras = kmPorDia.filter((d) => d.km > 0).map((d) => {
+        const [, mm, dd] = d.dia.split('-');
+        const pct = (d.km / kmMaxDia) * 100;
+        return `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;font-size:12px;">
+            <span style="width:48px;color:#666;">${dd}/${mm}</span>
+            <span style="flex:1;background:#eee;border-radius:4px;height:16px;position:relative;">
+              <span style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:#0066ff;border-radius:4px;"></span>
+            </span>
+            <span style="width:60px;text-align:right;font-weight:600;">${d.km.toFixed(1)} km</span>
+          </div>`;
+      }).join('');
+      cuerpo = `
+        <div style="margin:18px 0;display:flex;gap:20px;flex-wrap:wrap;">
+          <div><div style="font-size:22px;font-weight:800;color:#0066ff;">${unico.km.toFixed(1)} km</div><div style="font-size:11px;color:#888;">Km recorridos</div></div>
+          <div><div style="font-size:22px;font-weight:800;color:#c0392b;">${Math.round(unico.velMax)} km/h</div><div style="font-size:11px;color:#888;">Velocidad máxima</div></div>
+          <div><div style="font-size:22px;font-weight:800;color:#2e7d32;">${unico.paradas}</div><div style="font-size:11px;color:#888;">Paradas</div></div>
+          <div><div style="font-size:22px;font-weight:800;color:#e67e22;">${formatHoras(unico.minMovimiento)}</div><div style="font-size:11px;color:#888;">En movimiento</div></div>
+          <div><div style="font-size:22px;font-weight:800;color:#888;">${formatHoras(unico.minDetenido)}</div><div style="font-size:11px;color:#888;">Detenido</div></div>
+        </div>
+        <h3 style="font-size:14px;margin:18px 0 10px;">Kilómetros por día</h3>
+        ${barras || '<p style="color:#888;font-size:13px;">Sin recorridos en este período.</p>'}`;
+    }
+
+    const html = `
+      <html><head><title>${titulo}</title><meta charset="utf-8"></head>
+      <body style="font-family:Arial,sans-serif;color:#222;padding:30px;max-width:800px;margin:0 auto;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0066ff;padding-bottom:14px;">
+          ${logo}
+          <div style="text-align:right;font-size:12px;color:#666;">
+            <div style="font-size:16px;font-weight:700;color:#222;">${titulo}</div>
+            <div>Período: ${etiquetaPeriodo}</div>
+            <div>Emitido: ${fecha}</div>
+          </div>
+        </div>
+        ${cuerpo}
+        <div style="margin-top:40px;padding-top:12px;border-top:1px solid #eee;font-size:10px;color:#aaa;text-align:center;">
+          Informe generado por BBNet Track · www.bbnetsystem.com
+        </div>
+      </body></html>`;
+
+    const ventana = window.open('', '_blank');
+    if (!ventana) {
+      alert('Habilitá las ventanas emergentes para poder exportar el PDF.');
+      return;
+    }
+    ventana.document.write(html);
+    ventana.document.close();
+    // Le damos un momentito para que cargue todo y abrimos el diálogo de imprimir
+    setTimeout(() => ventana.print(), 400);
+  }
+
   return (
     <div>
-      <div style={{ marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '26px', fontWeight: 700, letterSpacing: '-0.5px' }}>Reportes</h1>
-        <p style={{ color: 'var(--texto-suave)', fontSize: '14px', marginTop: '4px' }}>
-          Estadísticas de tu flota · {etiquetaPeriodo}
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h1 style={{ fontSize: '26px', fontWeight: 700, letterSpacing: '-0.5px' }}>Reportes</h1>
+          <p style={{ color: 'var(--texto-suave)', fontSize: '14px', marginTop: '4px' }}>
+            Estadísticas de tu flota · {etiquetaPeriodo}
+          </p>
+        </div>
+        <button onClick={exportarPDF} style={{
+          background: 'var(--azul-electrico)', color: '#fff', border: 'none', borderRadius: '9px',
+          padding: '11px 18px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+        }}>
+          Exportar PDF
+        </button>
       </div>
 
       <div style={{ display: 'flex', gap: '4px', background: 'var(--gris-oscuro)', borderRadius: '10px', padding: '4px', border: '1px solid var(--gris-borde)', marginBottom: '18px', width: 'fit-content' }}>
