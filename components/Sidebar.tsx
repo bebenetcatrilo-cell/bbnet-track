@@ -26,6 +26,7 @@ const items = [
 const itemsSuperAdmin = [
   { href: '/dashboard/mapa-general', label: 'Mapa General', icono: 'mapa', proximo: false },
   { href: '/dashboard/clientes', label: 'Clientes', icono: 'clientes', proximo: false },
+  { href: '/dashboard/stock', label: 'Stock GPS', icono: 'dispositivos', proximo: false },
   { href: '/dashboard/planes', label: 'Planes', icono: 'planes', proximo: false },
   { href: '/dashboard/cobranza', label: 'Cobranza', icono: 'cobranza', proximo: false },
   { href: '/dashboard/servicio', label: 'Servicio', icono: 'servicio', proximo: false },
