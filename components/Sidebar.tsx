@@ -19,6 +19,7 @@ const items = [
   { href: '/dashboard/mapa', label: 'Mapa en vivo', icono: 'mapa', proximo: false },
   { href: '/dashboard/vehiculos', label: 'Vehículos', icono: 'vehiculos', proximo: false },
   { href: '/dashboard/historial', label: 'Historial', icono: 'historial', proximo: false },
+  { href: '/dashboard/eventos', label: 'Eventos', icono: 'alertas', proximo: false },
   { href: '/dashboard/dispositivos', label: 'Dispositivos', icono: 'dispositivos', proximo: false },
   { href: '/dashboard/reportes', label: 'Reportes', icono: 'reportes', proximo: false },
 ];
