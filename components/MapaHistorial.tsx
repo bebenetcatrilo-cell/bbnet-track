@@ -99,14 +99,36 @@ export default function MapaHistorial({ puntos, paradas, vista }: Props) {
 
     if (puntos.length === 0) return;
 
-    // ---- La línea del recorrido, coloreada por velocidad ----
-    // En vez de una sola línea, dibujamos muchos tramitos cortos (de un punto al
-    // siguiente), cada uno pintado del color que corresponde a su velocidad.
-    // Así el recorrido muestra de un vistazo dónde fue rápido y dónde lento.
-    for (let i = 1; i < puntos.length; i++) {
-      const ant = puntos[i - 1];
-      const act = puntos[i];
-      // Usamos la velocidad del punto actual para colorear el tramo
+    // ---- La línea del recorrido, LIMPIA y coloreada por velocidad ----
+    // Para que no quede "rayado" cuando el vehículo está quieto (el GPS baila aunque
+    // esté parado), hacemos dos cosas:
+    //   1) SUAVIZAR: descartamos los puntos que están a menos de 15 metros del último
+    //      que dibujamos (esos son "temblor" del GPS, no movimiento real).
+    //   2) NO DIBUJAR TRAMOS QUIETOS: si entre dos puntos el vehículo casi no se movió
+    //      (menos de 20m) o iba muy lento, no dibujamos esa rayita.
+    const METROS_MIN_DIBUJAR = 20; // tramo mínimo para dibujar una rayita
+    const METROS_SUAVIZAR = 15;    // si un punto está más cerca que esto del anterior dibujado, lo salteamos
+
+    // Primero armamos la lista de puntos "limpios" (sin el temblor)
+    const limpios: typeof puntos = [];
+    for (const p of puntos) {
+      if (limpios.length === 0) {
+        limpios.push(p);
+        continue;
+      }
+      const ult = limpios[limpios.length - 1];
+      const distM = distanciaKm(ult.latitud, ult.longitud, p.latitud, p.longitud) * 1000;
+      if (distM >= METROS_SUAVIZAR) {
+        limpios.push(p);
+      }
+    }
+
+    // Ahora dibujamos los tramos entre puntos limpios, solo si hubo movimiento real
+    for (let i = 1; i < limpios.length; i++) {
+      const ant = limpios[i - 1];
+      const act = limpios[i];
+      const distM = distanciaKm(ant.latitud, ant.longitud, act.latitud, act.longitud) * 1000;
+      if (distM < METROS_MIN_DIBUJAR) continue; // tramo demasiado corto: no dibujamos (estaba quieto)
       const color = colorPorVelocidad(act.velocidad ?? 0);
       grupo.addLayer(
         L.polyline(
@@ -163,6 +185,17 @@ export default function MapaHistorial({ puntos, paradas, vista }: Props) {
   //   60–90   → amarillo(ruta normal)
   //   90–120  → naranja (alta velocidad)
   //   +120    → rojo    (exceso de velocidad)
+  // Distancia entre dos coordenadas en km (Haversine)
+  function distanciaKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
   function colorPorVelocidad(vel: number): string {
     if (vel <= 0) return '#8b97aa';   // gris
     if (vel < 20) return '#2d8bff';   // azul
