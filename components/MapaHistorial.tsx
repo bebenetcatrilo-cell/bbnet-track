@@ -99,36 +99,21 @@ export default function MapaHistorial({ puntos, paradas, vista }: Props) {
 
     if (puntos.length === 0) return;
 
-    // ---- La línea del recorrido, LIMPIA y coloreada por velocidad ----
-    // Para que no quede "rayado" cuando el vehículo está quieto (el GPS baila aunque
-    // esté parado), hacemos dos cosas:
-    //   1) SUAVIZAR: descartamos los puntos que están a menos de 15 metros del último
-    //      que dibujamos (esos son "temblor" del GPS, no movimiento real).
-    //   2) NO DIBUJAR TRAMOS QUIETOS: si entre dos puntos el vehículo casi no se movió
-    //      (menos de 20m) o iba muy lento, no dibujamos esa rayita.
-    const METROS_MIN_DIBUJAR = 20; // tramo mínimo para dibujar una rayita
-    const METROS_SUAVIZAR = 15;    // si un punto está más cerca que esto del anterior dibujado, lo salteamos
-
-    // Primero armamos la lista de puntos "limpios" (sin el temblor)
-    const limpios: typeof puntos = [];
-    for (const p of puntos) {
-      if (limpios.length === 0) {
-        limpios.push(p);
-        continue;
-      }
-      const ult = limpios[limpios.length - 1];
-      const distM = distanciaKm(ult.latitud, ult.longitud, p.latitud, p.longitud) * 1000;
-      if (distM >= METROS_SUAVIZAR) {
-        limpios.push(p);
-      }
-    }
-
-    // Ahora dibujamos los tramos entre puntos limpios, solo si hubo movimiento real
-    for (let i = 1; i < limpios.length; i++) {
-      const ant = limpios[i - 1];
-      const act = limpios[i];
-      const distM = distanciaKm(ant.latitud, ant.longitud, act.latitud, act.longitud) * 1000;
-      if (distM < METROS_MIN_DIBUJAR) continue; // tramo demasiado corto: no dibujamos (estaba quieto)
+    // ---- La línea del recorrido, coloreada por velocidad ----
+    // En vez de una sola línea, dibujamos muchos tramitos cortos (de un punto al
+    // siguiente), cada uno pintado del color que corresponde a su velocidad.
+    // Así el recorrido muestra de un vistazo dónde fue rápido y dónde lento.
+    //
+    // IMPORTANTE: si entre dos posiciones hay un "salto" muy grande (más de 2 km),
+    // NO dibujamos ese tramo. Eso es un hueco de señal (el GPS se cortó por batería
+    // o sin señal y la siguiente posición está lejísimo). Dibujar esa línea recta
+    // dejaría una raya fea cruzando el mapa que no es un camino real.
+    const SALTO_MAX_KM = 2;
+    for (let i = 1; i < puntos.length; i++) {
+      const ant = puntos[i - 1];
+      const act = puntos[i];
+      const salto = distanciaKm(ant.latitud, ant.longitud, act.latitud, act.longitud);
+      if (salto > SALTO_MAX_KM) continue; // hueco de señal: no dibujamos esta línea fantasma
       const color = colorPorVelocidad(act.velocidad ?? 0);
       grupo.addLayer(
         L.polyline(
