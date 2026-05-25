@@ -24,13 +24,21 @@ const items = [
   { href: '/dashboard/reportes', label: 'Reportes', icono: 'reportes', proximo: false },
 ];
 
-const itemsSuperAdmin = [
+// Secciones del negocio EMPRESA (lo que ya estaba)
+const itemsEmpresa = [
   { href: '/dashboard/mapa-general', label: 'Mapa General', icono: 'mapa', proximo: false },
   { href: '/dashboard/clientes', label: 'Clientes', icono: 'clientes', proximo: false },
   { href: '/dashboard/stock', label: 'Stock GPS', icono: 'dispositivos', proximo: false },
   { href: '/dashboard/servicio', label: 'Servicio', icono: 'servicio', proximo: false },
   { href: '/dashboard/planes', label: 'Planes', icono: 'planes', proximo: false },
   { href: '/dashboard/cobranza', label: 'Cobranza', icono: 'cobranza', proximo: false },
+];
+
+// Secciones del negocio FAMILIA (se construyen de a poco; por ahora "en construcción")
+const itemsFamilia = [
+  { href: '/dashboard/familias', label: 'Familias', icono: 'clientes', proximo: false },
+  { href: '/dashboard/mapa-familias', label: 'Mapa Familias', icono: 'mapa', proximo: false },
+  { href: '/dashboard/cobranza-familias', label: 'Cobranza Familias', icono: 'cobranza', proximo: false },
 ];
 
 const ANCHO_CELULAR = 768;
@@ -42,6 +50,7 @@ export default function Sidebar({ empresa, rol }: { empresa: string; rol?: strin
 
   const [esCelular, setEsCelular] = useState(false);
   const [abierto, setAbierto] = useState(false); // solo aplica en celular
+  const [sector, setSector] = useState<'empresa' | 'familia'>('empresa'); // pestaña de negocio
 
   const esSuperAdmin = rol === 'super_admin';
 
@@ -139,12 +148,12 @@ export default function Sidebar({ empresa, rol }: { empresa: string; rol?: strin
         {/* Secciones normales (las ven todos) */}
         {items.map((item) => renderBoton(item))}
 
-        {/* Separador de zona ADMINISTRACIÓN (solo super_admin) */}
+        {/* Zona ADMINISTRACIÓN con selector de negocio (solo super_admin) */}
         {esSuperAdmin && (
           <>
             <div style={{
               display: 'flex', alignItems: 'center', gap: '8px',
-              margin: '16px 4px 6px', 
+              margin: '16px 4px 8px',
             }}>
               <span style={{
                 fontSize: '10px', fontWeight: 700, letterSpacing: '1px',
@@ -152,7 +161,39 @@ export default function Sidebar({ empresa, rol }: { empresa: string; rol?: strin
               }}>Administración</span>
               <span style={{ flex: 1, height: '1px', background: 'var(--gris-borde)' }} />
             </div>
-            {itemsSuperAdmin.map((item) => renderBoton(item))}
+
+            {/* Selector de pestañas: Empresa / Familia */}
+            <div style={{
+              display: 'flex', gap: '4px', background: 'var(--negro)',
+              border: '1px solid var(--gris-borde)', borderRadius: '10px',
+              padding: '4px', margin: '0 4px 10px',
+            }}>
+              <button
+                onClick={() => setSector('empresa')}
+                style={{
+                  flex: 1, padding: '8px', borderRadius: '7px', border: 'none', cursor: 'pointer',
+                  fontSize: '12px', fontWeight: 700,
+                  background: sector === 'empresa' ? 'var(--azul-electrico)' : 'transparent',
+                  color: sector === 'empresa' ? '#fff' : 'var(--texto-suave)',
+                }}
+              >
+                🏢 Empresa
+              </button>
+              <button
+                onClick={() => setSector('familia')}
+                style={{
+                  flex: 1, padding: '8px', borderRadius: '7px', border: 'none', cursor: 'pointer',
+                  fontSize: '12px', fontWeight: 700,
+                  background: sector === 'familia' ? 'var(--azul-electrico)' : 'transparent',
+                  color: sector === 'familia' ? '#fff' : 'var(--texto-suave)',
+                }}
+              >
+                👨‍👩‍👧 Familia
+              </button>
+            </div>
+
+            {/* Las secciones según la pestaña elegida */}
+            {(sector === 'empresa' ? itemsEmpresa : itemsFamilia).map((item) => renderBoton(item))}
           </>
         )}
       </nav>
