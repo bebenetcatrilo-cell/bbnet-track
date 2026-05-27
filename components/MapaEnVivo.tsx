@@ -45,6 +45,10 @@ export default function MapaEnVivo() {
   const capaFondoRef = useRef<any>(null); // la capa de fondo actual (calles o satelital)
   const marcadoresRef = useRef<{ [vehicleId: string]: any }>({});
   const LRef = useRef<any>(null);
+  // ¿El plan del cliente tiene el "seguimiento en vivo" (efecto Google Maps)?
+  const seguimientoVivoRef = useRef<boolean>(false);
+  // Guarda las animaciones en curso de cada vehículo (para cancelarlas si llega otra posición)
+  const animacionesRef = useRef<{ [vehicleId: string]: number }>({});
 
   const [cargando, setCargando] = useState(true);
   const [vehiculos, setVehiculos] = useState<Posicion[]>([]);
@@ -133,6 +137,27 @@ export default function MapaEnVivo() {
   async function cargarPosicionesIniciales() {
     // Solo las posiciones de NUESTRA empresa (los clientes se ven en Servicio)
     const miEmpresa = await getMiCompanyId();
+
+    // Averiguamos si el plan de esta empresa tiene "seguimiento en vivo" (premium).
+    // 1) buscamos el código de plan de la empresa, 2) miramos si ese plan lo tiene activado.
+    try {
+      const { data: emp } = await supabase
+        .from('companies')
+        .select('plan')
+        .eq('id', miEmpresa)
+        .single();
+      if (emp?.plan) {
+        const { data: plan } = await supabase
+          .from('planes')
+          .select('seguimiento_vivo')
+          .eq('codigo', emp.plan)
+          .single();
+        seguimientoVivoRef.current = plan?.seguimiento_vivo === true;
+      }
+    } catch (_) {
+      seguimientoVivoRef.current = false; // ante cualquier duda, sin efecto
+    }
+
     const { data, error } = await supabase
       .from('locations')
       .select('vehicle_id, latitud, longitud, velocidad, bateria, fecha_gps, vehicles(nombre, icono)')
@@ -171,6 +196,42 @@ export default function MapaEnVivo() {
     const validos = ['auto', 'camioneta', 'camion', 'moto'];
     const t = validos.includes(tipo) ? tipo : 'auto';
     return `<img src="/iconos/${t}.png" style="width:20px;height:20px;display:block;" />`;
+  }
+
+  // Mueve el marcador SUAVEMENTE de su posición actual a la nueva (efecto Google Maps).
+  // En vez de saltar, se desliza en ~1.5 segundos. Solo se usa para clientes premium.
+  function deslizarMarcador(marcador: any, destinoLat: number, destinoLon: number, vehicleId: string) {
+    const inicio = marcador.getLatLng();
+    const latIni = inicio.lat;
+    const lonIni = inicio.lng;
+    const dLat = destinoLat - latIni;
+    const dLon = destinoLon - lonIni;
+
+    // Si casi no se movió, lo ponemos directo (no vale la pena animar)
+    if (Math.abs(dLat) < 0.000001 && Math.abs(dLon) < 0.000001) {
+      marcador.setLatLng([destinoLat, destinoLon]);
+      return;
+    }
+
+    // Cancelamos cualquier animación anterior de este vehículo
+    if (animacionesRef.current[vehicleId]) {
+      cancelAnimationFrame(animacionesRef.current[vehicleId]);
+    }
+
+    const DURACION = 1500; // milisegundos que tarda en deslizarse
+    const t0 = performance.now();
+
+    function paso(ahora: number) {
+      let p = (ahora - t0) / DURACION;
+      if (p > 1) p = 1;
+      // Suavizado (easing): arranca y termina suave, no constante
+      const suave = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      marcador.setLatLng([latIni + dLat * suave, lonIni + dLon * suave]);
+      if (p < 1) {
+        animacionesRef.current[vehicleId] = requestAnimationFrame(paso);
+      }
+    }
+    animacionesRef.current[vehicleId] = requestAnimationFrame(paso);
   }
 
   // -------------------------------------------------------------------------
@@ -213,7 +274,13 @@ export default function MapaEnVivo() {
 
     const existente = marcadoresRef.current[p.vehicle_id];
     if (existente) {
-      existente.setLatLng([p.latitud, p.longitud]);
+      // Si el cliente es premium (seguimiento en vivo), el marcador se DESLIZA suave.
+      // Si no, salta directo a la posición nueva (como siempre).
+      if (seguimientoVivoRef.current) {
+        deslizarMarcador(existente, p.latitud, p.longitud, p.vehicle_id);
+      } else {
+        existente.setLatLng([p.latitud, p.longitud]);
+      }
       existente.setPopupContent(popup);
       existente.setIcon(icono);
     } else {
