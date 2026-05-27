@@ -266,7 +266,36 @@ export default function PaginaHistorial() {
     if (inicioParada !== null) {
       cerrarParada(pts, inicioParada, pts.length - 1, resultado, MIN_MINUTOS);
     }
-    return resultado;
+
+    // FUSIÓN: juntar paradas que quedaron muy cerca una de otra.
+    // El "baile" del GPS a veces abre y cierra varias paradas en el mismo lugar
+    // (salían 5-6 "P" amontonadas). Si dos paradas están a menos de 80m, las
+    // unimos en una sola, sumando el tiempo total que estuvo ahí.
+    return fusionarParadasCercanas(resultado);
+  }
+
+  // Junta paradas que están a menos de DISTANCIA_FUSION metros entre sí.
+  function fusionarParadasCercanas(paradas: Parada[]): Parada[] {
+    if (paradas.length <= 1) return paradas;
+    const DISTANCIA_FUSION = 80; // metros: paradas más cerca que esto = una sola
+    const fusionadas: Parada[] = [];
+
+    for (const par of paradas) {
+      const ultima = fusionadas[fusionadas.length - 1];
+      if (ultima) {
+        const dist = distanciaKm(ultima.latitud, ultima.longitud, par.latitud, par.longitud) * 1000;
+        if (dist < DISTANCIA_FUSION) {
+          // Está pegada a la anterior: las unimos (extendemos el tiempo hasta esta)
+          ultima.hasta = par.hasta;
+          ultima.minutos = Math.round(
+            (new Date(par.hasta).getTime() - new Date(ultima.desde).getTime()) / 60000
+          );
+          continue; // no la agregamos como parada nueva
+        }
+      }
+      fusionadas.push({ ...par });
+    }
+    return fusionadas;
   }
 
   function cerrarParada(pts: Punto[], desde: number, hasta: number, out: Parada[], minMin: number) {
