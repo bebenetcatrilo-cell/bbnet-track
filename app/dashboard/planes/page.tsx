@@ -22,6 +22,7 @@ type Plan = {
   dias_prueba: number;
   orden: number;
   activo: boolean;
+  seguimiento_vivo: boolean;
 };
 
 export default function PaginaPlanes() {
@@ -74,6 +75,7 @@ export default function PaginaPlanes() {
         limite_dispositivos: Number(form.limite_dispositivos) || 0,
         dias_prueba: Number(form.dias_prueba) || 0,
         activo: form.activo,
+        seguimiento_vivo: form.seguimiento_vivo,
       })
       .eq('id', form.id);
     setGuardando(false);
@@ -186,6 +188,22 @@ export default function PaginaPlanes() {
             <input type="checkbox" checked={form.activo} onChange={(e) => setForm({ ...form, activo: e.target.checked })} />
             Plan activo (se ofrece a los clientes)
           </label>
+
+          {/* Interruptor del seguimiento en vivo (efecto Google Maps) — función premium */}
+          <div style={{
+            marginTop: '14px', padding: '12px 14px', borderRadius: '10px',
+            background: form.seguimiento_vivo ? 'rgba(0,102,255,0.1)' : 'var(--gris-oscuro)',
+            border: `1px solid ${form.seguimiento_vivo ? 'var(--azul-electrico)' : 'var(--gris-borde)'}`,
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer', fontWeight: 600 }}>
+              <input type="checkbox" checked={form.seguimiento_vivo}
+                onChange={(e) => setForm({ ...form, seguimiento_vivo: e.target.checked })} />
+              🛰️ Seguimiento en vivo (efecto Google Maps)
+            </label>
+            <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '6px', marginLeft: '24px' }}>
+              Los clientes de este plan ven el vehículo moverse suave en el mapa, casi en tiempo real. Función premium.
+            </div>
+          </div>
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '24px', justifyContent: 'flex-end' }}>
             <button onClick={() => setModalAbierto(false)} style={s.botonChico}>Cancelar</button>
