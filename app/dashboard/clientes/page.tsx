@@ -91,8 +91,10 @@ export default function PaginaClientes() {
 
   async function cargarEmpresas() {
     setCargando(true);
+    // OJO: filtramos por tipo='empresa'. Las familias se gestionan en
+    // la sección "Familias" aparte (mismo SQL pero con tipo='familia').
     const [{ data: emps }, { data: plns }] = await Promise.all([
-      supabase.from('companies').select('*').order('created_at', { ascending: false }),
+      supabase.from('companies').select('*').eq('tipo', 'empresa').order('created_at', { ascending: false }),
       supabase.from('planes').select('codigo, nombre, limite_dispositivos').eq('activo', true).order('orden'),
     ]);
     setEmpresas(emps ?? []);
