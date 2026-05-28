@@ -111,8 +111,10 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
     // dejaría una raya fea cruzando el mapa que no es un camino real.
     // PASO 1: sacamos los puntos fantasma del GPS (saltos imposibles) — para todos.
     const sinFantasmas = quitarSaltosImposibles(puntos);
-    // PASO 2: si es celular, además limpiamos el telar. El hardware ya queda listo.
-    const puntosLimpios = esCelular ? limpiarRecorrido(sinFantasmas) : sinFantasmas;
+    // PASO 2: suavizamos el "baile" de cuando está casi parado — para todos.
+    const sinBaile = suavizarBaile(sinFantasmas);
+    // PASO 3: si es celular, además limpiamos el telar. El hardware ya queda listo.
+    const puntosLimpios = esCelular ? limpiarRecorrido(sinBaile) : sinBaile;
 
     const SALTO_MAX_KM = 2;
     for (let i = 1; i < puntosLimpios.length; i++) {
@@ -185,6 +187,29 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
       Math.sin(dLat / 2) ** 2 +
       Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  // ---- SUAVIZADO SUAVE (saca el "baile" de cuando está casi parado) ----
+  // Cuando el vehículo frena o maniobra despacio, el GPS reporta varios puntos
+  // amontonados en pocos metros, que se cruzan y hacen un "enredo" feo. Este
+  // suavizado ignora un punto si está a menos de 12 metros del anterior válido.
+  // OJO: NO mira la velocidad (a diferencia del filtro del telar). Por eso es
+  // seguro para el hardware: mantiene TODOS los puntos en movimiento real (que se
+  // alejan más de 12m) y solo colapsa el amontonamiento de estar casi quieto.
+  function suavizarBaile(pts: typeof puntos): typeof puntos {
+    if (pts.length <= 2) return pts;
+    const MIN_METROS = 12; // si se movió menos que esto, es baile de estar parado
+    const limpios = [pts[0]];
+    for (let i = 1; i < pts.length; i++) {
+      const ant = limpios[limpios.length - 1];
+      const act = pts[i];
+      const metros = distanciaKm(ant.latitud, ant.longitud, act.latitud, act.longitud) * 1000;
+      if (metros >= MIN_METROS) limpios.push(act);
+    }
+    // Siempre conservamos el último punto real (para no cortar el final del recorrido)
+    const ultimo = pts[pts.length - 1];
+    if (limpios[limpios.length - 1] !== ultimo) limpios.push(ultimo);
+    return limpios;
   }
 
   // ---- QUITAR SALTOS IMPOSIBLES (puntos fantasma del GPS) ----
