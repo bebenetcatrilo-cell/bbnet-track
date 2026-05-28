@@ -33,6 +33,7 @@ type Props = {
   puntos: Punto[];
   paradas: Parada[];
   vista: 'calles' | 'satelital';
+  esCelular?: boolean; // si es celular, aplica el filtro de limpieza; si es GPS hardware, dibuja tal cual
 };
 
 const CAPAS = {
@@ -40,7 +41,7 @@ const CAPAS = {
   satelital: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
 };
 
-export default function MapaHistorial({ puntos, paradas, vista }: Props) {
+export default function MapaHistorial({ puntos, paradas, vista, esCelular = true }: Props) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<any>(null);
   const capaFondoRef = useRef<any>(null);
@@ -87,7 +88,7 @@ export default function MapaHistorial({ puntos, paradas, vista }: Props) {
   useEffect(() => {
     dibujar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puntos, paradas]);
+  }, [puntos, paradas, esCelular]);
 
   function dibujar() {
     const L = LRef.current;
@@ -108,8 +109,9 @@ export default function MapaHistorial({ puntos, paradas, vista }: Props) {
     // NO dibujamos ese tramo. Eso es un hueco de señal (el GPS se cortó por batería
     // o sin señal y la siguiente posición está lejísimo). Dibujar esa línea recta
     // dejaría una raya fea cruzando el mapa que no es un camino real.
-    // Primero limpiamos el recorrido (sacamos el telar del GPS de celular)
-    const puntosLimpios = limpiarRecorrido(puntos);
+    // Si es celular, limpiamos el telar. Si es GPS de hardware (cableado),
+    // dibujamos tal cual porque reporta limpio (filtrarlo le hace mal: le deja huecos).
+    const puntosLimpios = esCelular ? limpiarRecorrido(puntos) : puntos;
 
     const SALTO_MAX_KM = 2;
     for (let i = 1; i < puntosLimpios.length; i++) {
