@@ -121,6 +121,18 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
     // PASO 3: si es celular, además limpiamos el telar. El hardware ya queda listo.
     const puntosLimpios = esCelular ? limpiarRecorrido(sinBaile) : sinBaile;
 
+    // Cache de direcciones: una vez que pedimos una dirección, la guardamos
+    // acá para no volver a pedirla a Nominatim. La clave son las coordenadas
+    // redondeadas a 3 decimales (~100m de precisión), así todos los puntos en
+    // la misma cuadra o el mismo tramo de ruta comparten la misma dirección.
+    // Esto hace que la mayoría de los clicks sean INSTANTÁNEOS porque el
+    // recorrido tiene muchos puntos cercanos entre sí.
+    const cacheDirecciones = new Map<string, string>();
+    // Controlador para cancelar el fetch anterior si el usuario clickea otro
+    // tramo mientras la búsqueda anterior todavía estaba en curso. Sin esto,
+    // un fetch viejo lento podría llegar después y "pisar" al nuevo.
+    let fetchActual: AbortController | null = null;
+
     const SALTO_MAX_KM = 5;
     for (let i = 1; i < puntosLimpios.length; i++) {
       const ant = puntosLimpios[i - 1];
@@ -146,20 +158,20 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
           color,
           weight: 4,
           opacity: 0.9,
-          // hacemos el clickeo más "permisivo": una línea de 4px es muy finita
-          // para clavarle el click justo arriba. Esto agranda la zona de click
-          // sin que se vea más grueso el dibujo.
           // @ts-expect-error - bubblingMouseEvents es válido en Leaflet pero no está bien tipado
           bubblingMouseEvents: false,
         }
       );
 
       // Al hacer click en este tramo: mostramos cartelito con velocidad + hora,
-      // y mientras tanto buscamos la calle (toma 1-2 segundos por internet) y
-      // cuando llega la actualizamos en el mismo popup.
+      // y la dirección viene del cache (instantánea) o de Nominatim (1-2 seg).
       tramo.on('click', (e: any) => {
         const latPopup = e.latlng ? e.latlng.lat : latClick;
         const lonPopup = e.latlng ? e.latlng.lng : lonClick;
+
+        // Clave del cache: coords redondeadas a 3 decimales (~100m)
+        const keyCache = `${latClick.toFixed(3)},${lonClick.toFixed(3)}`;
+        const direccionCacheada = cacheDirecciones.get(keyCache);
 
         const contenidoInicial = `
           <div style="font-family: system-ui, sans-serif; min-width: 180px;">
@@ -169,27 +181,36 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
             <div style="font-size: 13px; color: #444; margin-bottom: 6px;">
               🕐 ${hora}
             </div>
-            <div id="calle-${i}" style="font-size: 12px; color: #888; font-style: italic;">
-              Buscando dirección...
+            <div id="calle-${i}" style="font-size: 12px; color: ${direccionCacheada ? '#444' : '#888'}; font-style: ${direccionCacheada ? 'normal' : 'italic'};">
+              ${direccionCacheada ? `📍 ${direccionCacheada}` : 'Buscando dirección...'}
             </div>
           </div>
         `;
 
-        const popup = L.popup({ closeButton: true, autoPan: true })
+        L.popup({ closeButton: true, autoPan: true })
           .setLatLng([latPopup, lonPopup])
           .setContent(contenidoInicial)
           .openOn(mapa);
+
+        // Si la dirección ya estaba en cache, no hace falta pedir nada
+        if (direccionCacheada) return;
+
+        // Cancelar el fetch anterior si todavía estaba en curso
+        if (fetchActual) {
+          fetchActual.abort();
+        }
+        fetchActual = new AbortController();
+        const miFetch = fetchActual;
 
         // Buscamos la calle por Nominatim (OpenStreetMap, gratis, sin API key).
         // Si falla o tarda mucho, mostramos las coordenadas como respaldo.
         fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latClick}&lon=${lonClick}&zoom=18&addressdetails=1&accept-language=es`,
-          { headers: { 'Accept': 'application/json' } }
+          { headers: { 'Accept': 'application/json' }, signal: miFetch.signal }
         )
           .then((r) => r.json())
           .then((data) => {
             const a = data.address || {};
-            // armamos una dirección linda con lo que haya
             const calle = a.road || a.pedestrian || a.path || '';
             const numero = a.house_number ? ` ${a.house_number}` : '';
             const localidad = a.city || a.town || a.village || a.hamlet || a.county || '';
@@ -201,6 +222,9 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
               ? partes.join(', ')
               : `${latClick.toFixed(5)}, ${lonClick.toFixed(5)}`;
 
+            // Guardar en cache para los próximos clicks cercanos
+            cacheDirecciones.set(keyCache, direccion);
+
             // Si el popup sigue abierto, actualizamos el texto de la calle
             const el = document.getElementById(`calle-${i}`);
             if (el) {
@@ -209,7 +233,9 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
               el.style.fontStyle = 'normal';
             }
           })
-          .catch(() => {
+          .catch((err) => {
+            // Si fue cancelado (otro click), no hacemos nada
+            if (err.name === 'AbortError') return;
             const el = document.getElementById(`calle-${i}`);
             if (el) {
               el.innerHTML = `📍 ${latClick.toFixed(5)}, ${lonClick.toFixed(5)}`;
