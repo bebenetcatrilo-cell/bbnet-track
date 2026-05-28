@@ -21,6 +21,7 @@ const items = [
   { href: '/dashboard/historial', label: 'Historial', icono: 'historial', proximo: false },
   { href: '/dashboard/eventos', label: 'Eventos', icono: 'alertas', proximo: false },
   { href: '/dashboard/dispositivos', label: 'Dispositivos', icono: 'dispositivos', proximo: false },
+  { href: '/dashboard/mantenimiento', label: 'Mantenimiento', icono: 'servicio', proximo: false },
   { href: '/dashboard/reportes', label: 'Reportes', icono: 'reportes', proximo: false },
 ];
 
