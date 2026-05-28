@@ -109,9 +109,10 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
     // NO dibujamos ese tramo. Eso es un hueco de señal (el GPS se cortó por batería
     // o sin señal y la siguiente posición está lejísimo). Dibujar esa línea recta
     // dejaría una raya fea cruzando el mapa que no es un camino real.
-    // Si es celular, limpiamos el telar. Si es GPS de hardware (cableado),
-    // dibujamos tal cual porque reporta limpio (filtrarlo le hace mal: le deja huecos).
-    const puntosLimpios = esCelular ? limpiarRecorrido(puntos) : puntos;
+    // PASO 1: sacamos los puntos fantasma del GPS (saltos imposibles) — para todos.
+    const sinFantasmas = quitarSaltosImposibles(puntos);
+    // PASO 2: si es celular, además limpiamos el telar. El hardware ya queda listo.
+    const puntosLimpios = esCelular ? limpiarRecorrido(sinFantasmas) : sinFantasmas;
 
     const SALTO_MAX_KM = 2;
     for (let i = 1; i < puntosLimpios.length; i++) {
@@ -184,6 +185,34 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
       Math.sin(dLat / 2) ** 2 +
       Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  // ---- QUITAR SALTOS IMPOSIBLES (puntos fantasma del GPS) ----
+  // A veces el GPS (sobre todo el de hardware) tira una posición equivocada que
+  // cae a unas cuadras por un rebote de señal, y al toque vuelve a la correcta.
+  // Eso dibuja diagonales que cruzan manzanas. Detectamos esos "fantasmas" así:
+  // calculamos qué velocidad habría necesitado el vehículo para llegar de un punto
+  // al otro en el tiempo que pasó. Si esa velocidad es imposible (más de 120 km/h),
+  // la posición es un fantasma y la descartamos. Es seguro: un vehículo normal
+  // (hasta 120 km/h) nunca se ve afectado, solo se sacan los saltos físicamente
+  // imposibles. Aplica a hardware Y celular (un salto imposible es error en ambos).
+  function quitarSaltosImposibles(pts: typeof puntos): typeof puntos {
+    if (pts.length <= 2) return pts;
+    const VEL_MAX_KMH = 120; // más de esto entre dos puntos = imposible = fantasma
+    const limpios = [pts[0]];
+    for (let i = 1; i < pts.length; i++) {
+      const ant = limpios[limpios.length - 1];
+      const act = pts[i];
+      const km = distanciaKm(ant.latitud, ant.longitud, act.latitud, act.longitud);
+      let seg = (new Date(act.fecha_gps).getTime() - new Date(ant.fecha_gps).getTime()) / 1000;
+      if (seg <= 0) seg = 1; // por si vienen con el mismo segundo
+      const velImplicita = (km / seg) * 3600; // km/h que habría necesitado
+      if (velImplicita > VEL_MAX_KMH) {
+        continue; // es un fantasma: lo descartamos
+      }
+      limpios.push(act);
+    }
+    return limpios;
   }
 
   // ---- LIMPIEZA del recorrido (saca el "telar" del GPS de celular) ----
