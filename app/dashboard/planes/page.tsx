@@ -23,6 +23,7 @@ type Plan = {
   orden: number;
   activo: boolean;
   seguimiento_vivo: boolean;
+  mantenimiento: boolean;
 };
 
 export default function PaginaPlanes() {
@@ -76,6 +77,7 @@ export default function PaginaPlanes() {
         dias_prueba: Number(form.dias_prueba) || 0,
         activo: form.activo,
         seguimiento_vivo: form.seguimiento_vivo,
+        mantenimiento: form.mantenimiento,
       })
       .eq('id', form.id);
     setGuardando(false);
@@ -202,6 +204,22 @@ export default function PaginaPlanes() {
             </label>
             <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '6px', marginLeft: '24px' }}>
               Los clientes de este plan ven el vehículo moverse suave en el mapa, casi en tiempo real. Función premium.
+            </div>
+          </div>
+
+          {/* Interruptor de Mantenimiento (control de service por KM) — función premium */}
+          <div style={{
+            marginTop: '10px', padding: '12px 14px', borderRadius: '10px',
+            background: form.mantenimiento ? 'rgba(255,176,32,0.1)' : 'var(--gris-oscuro)',
+            border: `1px solid ${form.mantenimiento ? 'var(--amarillo)' : 'var(--gris-borde)'}`,
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer', fontWeight: 600 }}>
+              <input type="checkbox" checked={form.mantenimiento}
+                onChange={(e) => setForm({ ...form, mantenimiento: e.target.checked })} />
+              🔧 Control de mantenimiento por KM
+            </label>
+            <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '6px', marginLeft: '24px' }}>
+              Los clientes de este plan controlan services (aceite, frenos, etc.) por kilómetros recorridos. Función premium.
             </div>
           </div>
 
