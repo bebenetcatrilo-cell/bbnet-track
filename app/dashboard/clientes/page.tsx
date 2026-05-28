@@ -24,6 +24,7 @@ type Empresa = {
   plan: string;
   limite_dispositivos: number;
   activo: boolean;
+  tipo: 'empresa' | 'familia';
   created_at: string;
 };
 
@@ -38,6 +39,7 @@ const FORM_VACIO = {
   empresa_telefono: '',
   empresa_email: '',
   empresa_direccion: '',
+  tipo: 'empresa' as 'empresa' | 'familia',
   plan: 'trial',
   limite_dispositivos: 5,
   admin_nombre: '',
@@ -125,6 +127,7 @@ export default function PaginaClientes() {
         empresa_telefono: form.empresa_telefono.trim(),
         empresa_email: form.empresa_email.trim(),
         empresa_direccion: form.empresa_direccion.trim(),
+        tipo: form.tipo,
         plan: form.plan,
         limite_dispositivos: Number(form.limite_dispositivos) || 5,
         admin_nombre: form.admin_nombre.trim(),
@@ -200,6 +203,7 @@ export default function PaginaClientes() {
             empresa_telefono: empresaEditar.telefono?.trim() || null,
             empresa_email: empresaEditar.email?.trim() || null,
             empresa_direccion: (empresaEditar as any).direccion?.trim() || null,
+            tipo: empresaEditar.tipo,
             plan: empresaEditar.plan,
             limite_dispositivos: planElegido?.limite_dispositivos ?? empresaEditar.limite_dispositivos,
             admin_id: adminCliente?.id ?? null,
@@ -282,12 +286,21 @@ export default function PaginaClientes() {
                     {e.email || 'sin email'}
                   </div>
                 </div>
-                <span style={{
-                  fontSize: '11px', padding: '3px 8px', borderRadius: '6px', fontWeight: 600,
-                  background: 'rgba(0,102,255,0.15)', color: 'var(--azul-brillante)', textTransform: 'uppercase',
-                }}>
-                  {e.plan}
-                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
+                  <span style={{
+                    fontSize: '11px', padding: '3px 8px', borderRadius: '6px', fontWeight: 600,
+                    background: 'rgba(0,102,255,0.15)', color: 'var(--azul-brillante)', textTransform: 'uppercase',
+                  }}>
+                    {e.plan}
+                  </span>
+                  <span style={{
+                    fontSize: '11px', padding: '3px 8px', borderRadius: '6px', fontWeight: 600,
+                    background: e.tipo === 'familia' ? 'rgba(255,176,32,0.15)' : 'rgba(34,217,122,0.15)',
+                    color: e.tipo === 'familia' ? 'var(--amarillo)' : 'var(--verde-online)',
+                  }}>
+                    {e.tipo === 'familia' ? '👨‍👩‍👧 Familia' : '🏢 Empresa'}
+                  </span>
+                </div>
               </div>
               <div style={{ fontSize: '13px', color: 'var(--texto-suave)', marginTop: '14px' }}>
                 <div>📱 Límite dispositivos: <b style={{ color: 'var(--texto)' }}>{e.limite_dispositivos}</b></div>
@@ -329,6 +342,40 @@ export default function PaginaClientes() {
           <label style={s.label}>Nombre de la empresa *</label>
           <input value={empresaEditar.nombre} onChange={(ev) => setEmpresaEditar({ ...empresaEditar, nombre: ev.target.value })}
             style={s.input} autoFocus />
+
+          {/* Tipo: Empresa o Familia (define las reglas de privacidad) */}
+          <label style={s.label}>Tipo de cliente</label>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+            <button
+              type="button"
+              onClick={() => setEmpresaEditar({ ...empresaEditar, tipo: 'empresa' })}
+              style={{
+                flex: 1, padding: '11px', borderRadius: '9px', fontSize: '14px', fontWeight: 600,
+                cursor: 'pointer',
+                background: empresaEditar.tipo === 'empresa' ? 'rgba(34,217,122,0.15)' : 'var(--negro)',
+                border: `1px solid ${empresaEditar.tipo === 'empresa' ? 'var(--verde-online)' : 'var(--gris-borde)'}`,
+                color: empresaEditar.tipo === 'empresa' ? 'var(--verde-online)' : 'var(--texto-suave)',
+              }}
+            >
+              🏢 Empresa
+            </button>
+            <button
+              type="button"
+              onClick={() => setEmpresaEditar({ ...empresaEditar, tipo: 'familia' })}
+              style={{
+                flex: 1, padding: '11px', borderRadius: '9px', fontSize: '14px', fontWeight: 600,
+                cursor: 'pointer',
+                background: empresaEditar.tipo === 'familia' ? 'rgba(255,176,32,0.15)' : 'var(--negro)',
+                border: `1px solid ${empresaEditar.tipo === 'familia' ? 'var(--amarillo)' : 'var(--gris-borde)'}`,
+                color: empresaEditar.tipo === 'familia' ? 'var(--amarillo)' : 'var(--texto-suave)',
+              }}
+            >
+              👨‍👩‍👧 Familia
+            </button>
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '4px' }}>
+            Empresa: Track normal (vos ves todo). Familia: rastreo con privacidad estricta (vos solo ves estado técnico).
+          </div>
 
           <div style={{ display: 'flex', gap: '12px' }}>
             <div style={{ flex: 1 }}>
@@ -412,6 +459,40 @@ export default function PaginaClientes() {
           <label style={s.label}>Nombre de la empresa *</label>
           <input value={form.empresa_nombre} onChange={(e) => setForm({ ...form, empresa_nombre: e.target.value })}
             placeholder="Ej: Transportes González" style={s.input} autoFocus />
+
+          {/* Tipo: Empresa o Familia (define las reglas de privacidad) */}
+          <label style={s.label}>Tipo de cliente</label>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, tipo: 'empresa' })}
+              style={{
+                flex: 1, padding: '11px', borderRadius: '9px', fontSize: '14px', fontWeight: 600,
+                cursor: 'pointer',
+                background: form.tipo === 'empresa' ? 'rgba(34,217,122,0.15)' : 'var(--negro)',
+                border: `1px solid ${form.tipo === 'empresa' ? 'var(--verde-online)' : 'var(--gris-borde)'}`,
+                color: form.tipo === 'empresa' ? 'var(--verde-online)' : 'var(--texto-suave)',
+              }}
+            >
+              🏢 Empresa
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, tipo: 'familia' })}
+              style={{
+                flex: 1, padding: '11px', borderRadius: '9px', fontSize: '14px', fontWeight: 600,
+                cursor: 'pointer',
+                background: form.tipo === 'familia' ? 'rgba(255,176,32,0.15)' : 'var(--negro)',
+                border: `1px solid ${form.tipo === 'familia' ? 'var(--amarillo)' : 'var(--gris-borde)'}`,
+                color: form.tipo === 'familia' ? 'var(--amarillo)' : 'var(--texto-suave)',
+              }}
+            >
+              👨‍👩‍👧 Familia
+            </button>
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '4px' }}>
+            Empresa: Track normal. Familia: rastreo con privacidad estricta (vos solo ves estado técnico, nunca ubicaciones).
+          </div>
 
           <div style={{ display: 'flex', gap: '12px' }}>
             <div style={{ flex: 1 }}>
