@@ -217,13 +217,16 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
   // cae a unas cuadras por un rebote de señal, y al toque vuelve a la correcta.
   // Eso dibuja diagonales que cruzan manzanas. Detectamos esos "fantasmas" así:
   // calculamos qué velocidad habría necesitado el vehículo para llegar de un punto
-  // al otro en el tiempo que pasó. Si esa velocidad es imposible (más de 120 km/h),
+  // al otro en el tiempo que pasó. Si esa velocidad es imposible (más de 250 km/h),
   // la posición es un fantasma y la descartamos. Es seguro: un vehículo normal
-  // (hasta 120 km/h) nunca se ve afectado, solo se sacan los saltos físicamente
-  // imposibles. Aplica a hardware Y celular (un salto imposible es error en ambos).
+  // (autos rápidos en ruta a 140-180 km/h incluidos) nunca se ve afectado, solo se
+  // sacan los saltos físicamente imposibles (rebotes de señal que implican 500-1000
+  // km/h). Aplica a hardware Y celular (un salto imposible es error en ambos).
+  // OJO: si esto estuviera en 120, un auto andando rápido en ruta se borraría por
+  // error, dejando huecos en el recorrido. Por eso el techo es bien alto.
   function quitarSaltosImposibles(pts: typeof puntos): typeof puntos {
     if (pts.length <= 2) return pts;
-    const VEL_MAX_KMH = 120; // más de esto entre dos puntos = imposible = fantasma
+    const VEL_MAX_KMH = 250; // más de esto entre dos puntos = imposible = fantasma
     const limpios = [pts[0]];
     for (let i = 1; i < pts.length; i++) {
       const ant = limpios[limpios.length - 1];
