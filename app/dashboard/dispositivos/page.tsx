@@ -19,6 +19,7 @@ type Dispositivo = {
   nombre: string;
   tipo: string;
   device_uid: string | null;
+  numero_sim: string | null;
   vehicle_id: string | null;
   online: boolean;
   bateria: number | null;
@@ -42,6 +43,7 @@ const DISPOSITIVO_VACIO = {
   nombre: '',
   tipo: 'celular',
   device_uid: '',
+  numero_sim: '',
   vehicle_id: '',
   activo: true,
 };
@@ -126,6 +128,7 @@ export default function PaginaDispositivos() {
       nombre: d.nombre,
       tipo: d.tipo,
       device_uid: d.device_uid ?? '',
+      numero_sim: d.numero_sim ?? '',
       vehicle_id: d.vehicle_id ?? '',
       activo: d.activo,
     });
@@ -143,6 +146,9 @@ export default function PaginaDispositivos() {
       nombre: form.nombre.trim(),
       tipo: form.tipo,
       device_uid: form.device_uid.trim() || null,
+      // El número de chip solo tiene sentido para GPS cableados.
+      // Si es celular u otra cosa, lo guardamos vacío (null).
+      numero_sim: form.tipo === 'gps_cableado' ? (form.numero_sim.trim() || null) : null,
       vehicle_id: form.vehicle_id || null,
       activo: form.activo,
     };
@@ -273,6 +279,9 @@ export default function PaginaDispositivos() {
 
               <div style={{ fontSize: '13px', color: 'var(--texto-suave)', marginTop: '14px' }}>
                 <div>🚗 Vehículo: <b style={{ color: 'var(--texto)' }}>{vehiculoDe(d.vehicle_id)}</b></div>
+                {d.tipo === 'gps_cableado' && d.numero_sim && (
+                  <div style={{ marginTop: '4px' }}>📱 Chip: <b style={{ color: 'var(--texto)' }}>{d.numero_sim}</b></div>
+                )}
                 {d.bateria != null && <div style={{ marginTop: '4px' }}>🔋 Batería: <b style={{ color: 'var(--texto)' }}>{d.bateria}%</b></div>}
               </div>
 
@@ -308,6 +317,18 @@ export default function PaginaDispositivos() {
           <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '4px' }}>
             Para celulares es opcional. Para GPS cableados suele ser el IMEI.
           </div>
+
+          {/* Número de chip: SOLO para GPS cableados (sirve para mandar comandos por SMS) */}
+          {form.tipo === 'gps_cableado' && (
+            <>
+              <label style={s.label}>Número de chip (SIM)</label>
+              <input value={form.numero_sim} onChange={(e) => setForm({ ...form, numero_sim: e.target.value })}
+                placeholder="Ej: 2954123456" style={s.input} />
+              <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '4px' }}>
+                El número del chip que va adentro del GPS. Lo necesitás para mandarle comandos por SMS (TIMER, PARAM, etc.).
+              </div>
+            </>
+          )}
 
           <label style={s.label}>Vehículo asignado</label>
           <select value={form.vehicle_id} onChange={(e) => setForm({ ...form, vehicle_id: e.target.value })} style={s.input}>
