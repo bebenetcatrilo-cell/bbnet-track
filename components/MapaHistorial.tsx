@@ -128,15 +128,98 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
       const salto = distanciaKm(ant.latitud, ant.longitud, act.latitud, act.longitud);
       if (salto > SALTO_MAX_KM) continue; // hueco de señal: no dibujamos esta línea fantasma
       const color = colorPorVelocidad(act.velocidad ?? 0);
-      grupo.addLayer(
-        L.polyline(
-          [
-            [ant.latitud, ant.longitud],
-            [act.latitud, act.longitud],
-          ],
-          { color, weight: 4, opacity: 0.9 }
-        )
+      // Datos del punto que se muestran al hacer click en este tramo
+      const velocidad = Math.round(act.velocidad ?? 0);
+      const hora = new Date(act.fecha_gps).toLocaleTimeString('es-AR', {
+        hour12: false,
+        timeZone: 'America/Argentina/Buenos_Aires'
+      });
+      const latClick = act.latitud;
+      const lonClick = act.longitud;
+
+      const tramo = L.polyline(
+        [
+          [ant.latitud, ant.longitud],
+          [act.latitud, act.longitud],
+        ],
+        {
+          color,
+          weight: 4,
+          opacity: 0.9,
+          // hacemos el clickeo más "permisivo": una línea de 4px es muy finita
+          // para clavarle el click justo arriba. Esto agranda la zona de click
+          // sin que se vea más grueso el dibujo.
+          // @ts-expect-error - bubblingMouseEvents es válido en Leaflet pero no está bien tipado
+          bubblingMouseEvents: false,
+        }
       );
+
+      // Al hacer click en este tramo: mostramos cartelito con velocidad + hora,
+      // y mientras tanto buscamos la calle (toma 1-2 segundos por internet) y
+      // cuando llega la actualizamos en el mismo popup.
+      tramo.on('click', (e: any) => {
+        const latPopup = e.latlng ? e.latlng.lat : latClick;
+        const lonPopup = e.latlng ? e.latlng.lng : lonClick;
+
+        const contenidoInicial = `
+          <div style="font-family: system-ui, sans-serif; min-width: 180px;">
+            <div style="font-size: 18px; font-weight: 700; color: #0066ff; margin-bottom: 4px;">
+              ${velocidad} km/h
+            </div>
+            <div style="font-size: 13px; color: #444; margin-bottom: 6px;">
+              🕐 ${hora}
+            </div>
+            <div id="calle-${i}" style="font-size: 12px; color: #888; font-style: italic;">
+              Buscando dirección...
+            </div>
+          </div>
+        `;
+
+        const popup = L.popup({ closeButton: true, autoPan: true })
+          .setLatLng([latPopup, lonPopup])
+          .setContent(contenidoInicial)
+          .openOn(mapa);
+
+        // Buscamos la calle por Nominatim (OpenStreetMap, gratis, sin API key).
+        // Si falla o tarda mucho, mostramos las coordenadas como respaldo.
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latClick}&lon=${lonClick}&zoom=18&addressdetails=1&accept-language=es`,
+          { headers: { 'Accept': 'application/json' } }
+        )
+          .then((r) => r.json())
+          .then((data) => {
+            const a = data.address || {};
+            // armamos una dirección linda con lo que haya
+            const calle = a.road || a.pedestrian || a.path || '';
+            const numero = a.house_number ? ` ${a.house_number}` : '';
+            const localidad = a.city || a.town || a.village || a.hamlet || a.county || '';
+            const partes = [
+              calle ? `${calle}${numero}` : '',
+              localidad,
+            ].filter(Boolean);
+            const direccion = partes.length > 0
+              ? partes.join(', ')
+              : `${latClick.toFixed(5)}, ${lonClick.toFixed(5)}`;
+
+            // Si el popup sigue abierto, actualizamos el texto de la calle
+            const el = document.getElementById(`calle-${i}`);
+            if (el) {
+              el.innerHTML = `📍 ${direccion}`;
+              el.style.color = '#444';
+              el.style.fontStyle = 'normal';
+            }
+          })
+          .catch(() => {
+            const el = document.getElementById(`calle-${i}`);
+            if (el) {
+              el.innerHTML = `📍 ${latClick.toFixed(5)}, ${lonClick.toFixed(5)}`;
+              el.style.color = '#444';
+              el.style.fontStyle = 'normal';
+            }
+          });
+      });
+
+      grupo.addLayer(tramo);
     }
 
     // Una línea invisible que une todo, solo para calcular el zoom (fitBounds)
