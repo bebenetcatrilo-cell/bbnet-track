@@ -507,9 +507,9 @@ function CalendarioConPuntitos({
   return (
     <>
       {/* Fondo para cerrar al hacer clic afuera */}
-      <div onClick={onCerrar} style={{ position: 'fixed', inset: 0, zIndex: 50 }} />
+      <div onClick={onCerrar} style={{ position: 'fixed', inset: 0, zIndex: 1500 }} />
       <div style={{
-        position: 'absolute', top: '76px', left: 0, zIndex: 51,
+        position: 'absolute', top: '76px', left: 0, zIndex: 1501,
         background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
         borderRadius: '12px', padding: '14px', width: '280px',
         boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
