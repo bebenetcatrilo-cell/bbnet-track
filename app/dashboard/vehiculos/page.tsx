@@ -14,6 +14,7 @@ type Vehiculo = {
   modelo: string | null;
   color: string | null;
   activo: boolean;
+  odometro_actual: number;
 };
 
 type Dispositivo = {
@@ -34,6 +35,7 @@ const VEHICULO_VACIO = {
   modelo: '',
   color: '',
   activo: true,
+  odometro_actual: 0,
 };
 
 export default function PaginaVehiculos() {
@@ -84,6 +86,7 @@ export default function PaginaVehiculos() {
       modelo: v.modelo ?? '',
       color: v.color ?? '',
       activo: v.activo,
+      odometro_actual: v.odometro_actual ?? 0,
     });
     const disp = dispositivos.find((d) => d.vehicle_id === v.id);
     setDispositivoElegido(disp?.id ?? '');
@@ -110,6 +113,7 @@ export default function PaginaVehiculos() {
           modelo: form.modelo.trim() || null,
           color: form.color.trim() || null,
           activo: form.activo,
+          odometro_actual: Number(form.odometro_actual) || 0,
         })
         .eq('id', form.id);
     } else {
@@ -130,6 +134,7 @@ export default function PaginaVehiculos() {
           modelo: form.modelo.trim() || null,
           color: form.color.trim() || null,
           activo: form.activo,
+          odometro_actual: Number(form.odometro_actual) || 0,
         })
         .select('id')
         .single();
@@ -282,6 +287,16 @@ export default function PaginaVehiculos() {
               <input value={form.modelo} onChange={(e) => setForm({ ...form, modelo: e.target.value })}
                 placeholder="Hilux" style={s.input} />
             </div>
+          </div>
+
+          {/* Odómetro actual: KM con los que arranca a contar el vehículo.
+              De ahí en más el GPS va sumando solo. */}
+          <label style={s.label}>Kilómetros actuales del vehículo</label>
+          <input type="number" value={form.odometro_actual}
+            onChange={(e) => setForm({ ...form, odometro_actual: Number(e.target.value) })}
+            placeholder="Ej: 152000" style={s.input} />
+          <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '4px' }}>
+            Mirá el cuentakilómetros y cargá los KM que tiene hoy. El sistema va a ir sumando los KM que el GPS detecte de ahora en adelante.
           </div>
 
           <label style={s.label}>Dispositivo de rastreo</label>
