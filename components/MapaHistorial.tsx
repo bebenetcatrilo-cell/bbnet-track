@@ -222,9 +222,11 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
       grupo.addLayer(tramo);
     }
 
-    // Una línea invisible que une todo, solo para calcular el zoom (fitBounds)
+    // Una línea invisible que une todo, solo para calcular el zoom (fitBounds).
+    // IMPORTANTE: `interactive: false` hace que NO reciba clicks; si no, taparía
+    // a los tramos de colores que están debajo y los clicks no llegarían a ellos.
     const coords = puntosLimpios.map((p) => [p.latitud, p.longitud]);
-    const lineaCompleta = L.polyline(coords, { opacity: 0 });
+    const lineaCompleta = L.polyline(coords, { opacity: 0, interactive: false });
     grupo.addLayer(lineaCompleta);
 
     // Marcador de INICIO (verde)
