@@ -48,6 +48,9 @@ export default function PaginaHistorial() {
   const [paradas, setParadas] = useState<Parada[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [yaBuscado, setYaBuscado] = useState(false);
+  // ¿El vehículo mostrado usa celular (app) o GPS de hardware (cableado)?
+  // Los celulares necesitan filtro de limpieza; el hardware se dibuja tal cual.
+  const [esCelular, setEsCelular] = useState(true);
 
   // Días que tienen recorrido (para marcarlos con puntito en el calendario)
   const [diasConDatos, setDiasConDatos] = useState<Set<string>>(new Set());
@@ -109,6 +112,23 @@ export default function PaginaHistorial() {
   // Trae TODAS las posiciones de un vehículo en un día, en tandas de 1000.
   // Supabase devuelve máximo 1000 filas por consulta, así que paginamos para
   // no perder posiciones en días con mucho recorrido (más de 1000 puntos).
+  // Averigua si el vehículo usa celular (app) o GPS de hardware (cableado).
+  // Mira el dispositivo vinculado a ese vehículo en tracker_devices.
+  async function averiguarTipoDispositivo(vehId: string): Promise<boolean> {
+    try {
+      const { data } = await supabase
+        .from('tracker_devices')
+        .select('tipo')
+        .eq('vehicle_id', vehId)
+        .maybeSingle();
+      // Si es gps_cableado => NO es celular (devolvemos false = no filtrar fuerte)
+      // Cualquier otro caso (celular, o sin dato) => tratamos como celular (filtrar)
+      return data?.tipo !== 'gps_cableado';
+    } catch (_) {
+      return true; // ante la duda, filtramos (más seguro para no dejar telar)
+    }
+  }
+
   async function traerPosiciones(vehId: string, dia: string): Promise<Punto[]> {
     const TANDA = 1000;
     const desde = `${dia}T00:00:00`;
@@ -142,9 +162,11 @@ export default function PaginaHistorial() {
     setBuscando(true);
     setYaBuscado(true);
 
+    const celular = await averiguarTipoDispositivo(vehiculoId);
+    setEsCelular(celular);
     const pts = await traerPosiciones(vehiculoId, fecha);
     setPuntos(pts);
-    setParadas(calcularParadas(pts));
+    setParadas(calcularParadas(pts, celular));
     setBuscando(false);
   }
 
@@ -183,9 +205,11 @@ export default function PaginaHistorial() {
     if (!vehiculoId) return;
     setBuscando(true);
     setYaBuscado(true);
+    const celular = await averiguarTipoDispositivo(vehiculoId);
+    setEsCelular(celular);
     const pts = await traerPosiciones(vehiculoId, f);
     setPuntos(pts);
-    setParadas(calcularParadas(pts));
+    setParadas(calcularParadas(pts, celular));
     setBuscando(false);
   }
 
@@ -230,7 +254,7 @@ export default function PaginaHistorial() {
   // Detectar paradas: cuando el vehículo se queda casi quieto varios puntos seguidos.
   // Pensado para tolerar el "baile" del GPS de celular (que salta de velocidad y de
   // posición unos metros aunque el auto esté parado).
-  function calcularParadas(pts: Punto[]): Parada[] {
+  function calcularParadas(pts: Punto[], celular: boolean = true): Parada[] {
     const resultado: Parada[] = [];
     if (pts.length < 3) return resultado;
 
@@ -267,11 +291,9 @@ export default function PaginaHistorial() {
       cerrarParada(pts, inicioParada, pts.length - 1, resultado, MIN_MINUTOS);
     }
 
-    // FUSIÓN: juntar paradas que quedaron muy cerca una de otra.
-    // El "baile" del GPS a veces abre y cierra varias paradas en el mismo lugar
-    // (salían 5-6 "P" amontonadas). Si dos paradas están a menos de 80m, las
-    // unimos en una sola, sumando el tiempo total que estuvo ahí.
-    return fusionarParadasCercanas(resultado);
+    // FUSIÓN: solo para celulares (el baile del GPS de celu genera paradas
+    // amontonadas). El GPS de hardware reporta limpio, no hace falta fusionar.
+    return celular ? fusionarParadasCercanas(resultado) : resultado;
   }
 
   // Junta paradas que están a menos de DISTANCIA_FUSION metros entre sí.
@@ -411,7 +433,7 @@ export default function PaginaHistorial() {
         ) : puntos.length === 0 ? (
           <div style={s.aviso}>No hay recorrido para ese vehículo en esa fecha.</div>
         ) : (
-          <MapaHistorial puntos={puntos} paradas={paradas} vista={vista} />
+          <MapaHistorial puntos={puntos} paradas={paradas} vista={vista} esCelular={esCelular} />
         )}
       </div>
     </div>
