@@ -105,10 +105,15 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
     // siguiente), cada uno pintado del color que corresponde a su velocidad.
     // Así el recorrido muestra de un vistazo dónde fue rápido y dónde lento.
     //
-    // IMPORTANTE: si entre dos posiciones hay un "salto" muy grande (más de 2 km),
+    // IMPORTANTE: si entre dos posiciones hay un "salto" muy grande (más de 5 km),
     // NO dibujamos ese tramo. Eso es un hueco de señal (el GPS se cortó por batería
     // o sin señal y la siguiente posición está lejísimo). Dibujar esa línea recta
     // dejaría una raya fea cruzando el mapa que no es un camino real.
+    // OJO: el techo es 5 km (no 2) porque en ruta a 150 km/h, con un punto cada
+    // minuto o un poco más, dos posiciones REALES y seguidas quedan a 2,5-4 km una
+    // de la otra. Si el límite fuera 2, esos tramos reales se cortarían y dejarían
+    // micro-cortes blancos en la línea. Con 5 km el recorrido de ruta queda entero
+    // y los huecos de señal de verdad (saltos de 20-50 km) se siguen descartando.
     // PASO 1: sacamos los puntos fantasma del GPS (saltos imposibles) — para todos.
     const sinFantasmas = quitarSaltosImposibles(puntos);
     // PASO 2: suavizamos el "baile" de cuando está casi parado — para todos.
@@ -116,7 +121,7 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
     // PASO 3: si es celular, además limpiamos el telar. El hardware ya queda listo.
     const puntosLimpios = esCelular ? limpiarRecorrido(sinBaile) : sinBaile;
 
-    const SALTO_MAX_KM = 2;
+    const SALTO_MAX_KM = 5;
     for (let i = 1; i < puntosLimpios.length; i++) {
       const ant = puntosLimpios[i - 1];
       const act = puntosLimpios[i];
