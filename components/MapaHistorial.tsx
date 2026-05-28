@@ -142,7 +142,7 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
     grupo.addLayer(
       L.marker([inicio.latitud, inicio.longitud], {
         icon: marcador(L, '#22d97a', 'A'),
-      }).bindPopup(`<b>Inicio</b><br/>${new Date(inicio.fecha_gps).toLocaleTimeString('es-AR', { hour12: false })}`)
+      }).bindPopup(`<b>Inicio</b><br/>${new Date(inicio.fecha_gps).toLocaleTimeString('es-AR', { hour12: false, timeZone: 'America/Argentina/Buenos_Aires' })}`)
     );
 
     // Marcador de FIN (rojo)
@@ -150,7 +150,7 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
     grupo.addLayer(
       L.marker([fin.latitud, fin.longitud], {
         icon: marcador(L, '#ff4d5e', 'B'),
-      }).bindPopup(`<b>Fin</b><br/>${new Date(fin.fecha_gps).toLocaleTimeString('es-AR', { hour12: false })}`)
+      }).bindPopup(`<b>Fin</b><br/>${new Date(fin.fecha_gps).toLocaleTimeString('es-AR', { hour12: false, timeZone: 'America/Argentina/Buenos_Aires' })}`)
     );
 
     // Marcadores de PARADAS (amarillo)
@@ -160,7 +160,7 @@ export default function MapaHistorial({ puntos, paradas, vista, esCelular = true
           icon: marcador(L, '#ffb020', 'P'),
         }).bindPopup(
           `<b>Parada · ${par.minutos} min</b><br/>` +
-          `${new Date(par.desde).toLocaleTimeString('es-AR', { hour12: false })} → ${new Date(par.hasta).toLocaleTimeString('es-AR', { hour12: false })}`
+          `${new Date(par.desde).toLocaleTimeString('es-AR', { hour12: false, timeZone: 'America/Argentina/Buenos_Aires' })} → ${new Date(par.hasta).toLocaleTimeString('es-AR', { hour12: false, timeZone: 'America/Argentina/Buenos_Aires' })}`
         )
       );
     });
