@@ -279,16 +279,35 @@ export default function PaginaDispositivos() {
 
               <div style={{ fontSize: '13px', color: 'var(--texto-suave)', marginTop: '14px' }}>
                 <div>🚗 Vehículo: <b style={{ color: 'var(--texto)' }}>{vehiculoDe(d.vehicle_id)}</b></div>
-                {d.tipo === 'gps_cableado' && d.numero_sim && (
+                {/* El número de chip (SIM) es un dato técnico interno - solo lo ve el super-admin
+                    porque sirve para mandar comandos SMS al GPS desde tu lado */}
+                {esSuperAdmin && d.tipo === 'gps_cableado' && d.numero_sim && (
                   <div style={{ marginTop: '4px' }}>📱 Chip: <b style={{ color: 'var(--texto)' }}>{d.numero_sim}</b></div>
                 )}
                 {d.bateria != null && <div style={{ marginTop: '4px' }}>🔋 Batería: <b style={{ color: 'var(--texto)' }}>{d.bateria}%</b></div>}
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                <button onClick={() => abrirEditar(d)} style={s.botonChico}>Editar</button>
-                <button onClick={() => eliminar(d)} style={{ ...s.botonChico, color: 'var(--rojo-offline)' }}>Eliminar</button>
-              </div>
+              {/* Botones Editar/Eliminar:
+                  - Super-admin: ve todos los botones siempre
+                  - Cliente: solo ve botones en sus celulares. Los GPS cableados los gestiona el proveedor,
+                    así que el cliente solo los visualiza. Si quiere moverlos a otro vehículo, tiene que
+                    contactar al proveedor (es un trabajo físico con costo). */}
+              {(esSuperAdmin || d.tipo === 'celular') ? (
+                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                  <button onClick={() => abrirEditar(d)} style={s.botonChico}>Editar</button>
+                  <button onClick={() => eliminar(d)} style={{ ...s.botonChico, color: 'var(--rojo-offline)' }}>Eliminar</button>
+                </div>
+              ) : (
+                <div style={{
+                  marginTop: '16px', padding: '8px 12px', borderRadius: '8px',
+                  background: 'rgba(255,176,32,0.08)', border: '1px solid rgba(255,176,32,0.25)',
+                  fontSize: '12px', color: 'var(--texto-suave)',
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                }}>
+                  <span>🔒</span>
+                  <span>Gestionado por tu proveedor. Para cambios, comunicate con BBNet.</span>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -302,24 +321,40 @@ export default function PaginaDispositivos() {
         >
           <label style={s.label}>Nombre *</label>
           <input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-            placeholder="Ej: Celular Juan / GPS Camión 3" style={s.input} autoFocus />
+            placeholder={esSuperAdmin ? "Ej: Celular Juan / GPS Camión 3" : "Ej: Celular Juan"}
+            style={s.input} autoFocus />
 
-          <label style={s.label}>Tipo</label>
-          <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} style={s.input}>
-            {TIPOS_DISPOSITIVO.map((t) => (
-              <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
-            ))}
-          </select>
+          {/* Selector de tipo: SOLO para super-admin.
+              El cliente solo carga celulares, no necesita ver el selector. */}
+          {esSuperAdmin && (
+            <>
+              <label style={s.label}>Tipo</label>
+              <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} style={s.input}>
+                {TIPOS_DISPOSITIVO.map((t) => (
+                  <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
+                ))}
+              </select>
+            </>
+          )}
 
-          <label style={s.label}>Identificador del aparato</label>
-          <input value={form.device_uid} onChange={(e) => setForm({ ...form, device_uid: e.target.value })}
-            placeholder="IMEI del GPS o ID del celular (opcional)" style={s.input} />
-          <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '4px' }}>
-            Para celulares es opcional. Para GPS cableados suele ser el IMEI.
-          </div>
+          <label style={s.label}>
+            {esSuperAdmin ? 'Identificador del aparato' : 'Número de Celular'}
+          </label>
+          <input
+            value={form.device_uid}
+            onChange={(e) => setForm({ ...form, device_uid: e.target.value })}
+            placeholder={esSuperAdmin ? 'IMEI del GPS o ID del celular (opcional)' : 'Ej: 2954123456'}
+            style={s.input}
+          />
+          {esSuperAdmin && (
+            <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '4px' }}>
+              Para celulares es opcional. Para GPS cableados suele ser el IMEI.
+            </div>
+          )}
 
-          {/* Número de chip: SOLO para GPS cableados (sirve para mandar comandos por SMS) */}
-          {form.tipo === 'gps_cableado' && (
+          {/* Número de chip: SOLO para GPS cableados (sirve para mandar comandos por SMS).
+              Solo lo ve el super-admin porque los clientes no manejan cableados. */}
+          {esSuperAdmin && form.tipo === 'gps_cableado' && (
             <>
               <label style={s.label}>Número de chip (SIM)</label>
               <input value={form.numero_sim} onChange={(e) => setForm({ ...form, numero_sim: e.target.value })}
