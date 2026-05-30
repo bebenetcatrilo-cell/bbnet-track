@@ -24,6 +24,7 @@ type Plan = {
   activo: boolean;
   seguimiento_vivo: boolean;
   mantenimiento: boolean;
+  reportes: boolean;
 };
 
 export default function PaginaPlanes() {
@@ -78,6 +79,7 @@ export default function PaginaPlanes() {
         activo: form.activo,
         seguimiento_vivo: form.seguimiento_vivo,
         mantenimiento: form.mantenimiento,
+        reportes: form.reportes,
       })
       .eq('id', form.id);
     setGuardando(false);
@@ -220,6 +222,22 @@ export default function PaginaPlanes() {
             </label>
             <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '6px', marginLeft: '24px' }}>
               Los clientes de este plan controlan services (aceite, frenos, etc.) por kilómetros recorridos. Función premium.
+            </div>
+          </div>
+
+          {/* Interruptor de Reportes — función premium */}
+          <div style={{
+            marginTop: '10px', padding: '12px 14px', borderRadius: '10px',
+            background: form.reportes ? 'rgba(34,217,122,0.1)' : 'var(--gris-oscuro)',
+            border: `1px solid ${form.reportes ? 'var(--verde-online)' : 'var(--gris-borde)'}`,
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer', fontWeight: 600 }}>
+              <input type="checkbox" checked={form.reportes}
+                onChange={(e) => setForm({ ...form, reportes: e.target.checked })} />
+              📊 Reportes
+            </label>
+            <div style={{ fontSize: '12px', color: 'var(--texto-tenue)', marginTop: '6px', marginLeft: '24px' }}>
+              Los clientes de este plan acceden a la sección Reportes (resúmenes, kilometraje, etc.). Función premium.
             </div>
           </div>
 
