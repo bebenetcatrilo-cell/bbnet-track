@@ -415,8 +415,8 @@ const s: { [k: string]: React.CSSProperties } = {
   td: { padding: '13px 18px' },
   label: { display: 'block', fontSize: '13px', color: 'var(--texto-suave)', marginBottom: '5px', fontWeight: 500 },
   input: {
-    width: '100%', background: 'var(--negro)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '10px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
+    width: '100%', background: 'var(--negro)', border: '1px solid var(--gris-borde)',
+    borderRadius: '9px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
   },
   btnPrimario: {
     background: 'var(--azul-electrico)', color: '#fff', border: 'none', borderRadius: '9px',

@@ -393,28 +393,28 @@ export default function PaginaDispositivos() {
 const s: { [k: string]: React.CSSProperties } = {
   botonPrimario: {
     background: 'linear-gradient(135deg, var(--azul-electrico), var(--azul-brillante))',
-    border: 'none', borderRadius: '12px', padding: '12px 20px', color: '#fff',
+    border: 'none', borderRadius: '10px', padding: '11px 18px', color: '#fff',
     fontSize: '14px', fontWeight: 600, boxShadow: '0 6px 18px var(--azul-glow)',
   },
   botonChico: {
-    background: 'var(--gris-medio)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px',
-    padding: '9px 16px', color: 'var(--texto)', fontSize: '13px', fontWeight: 500,
+    background: 'var(--gris-medio)', border: '1px solid var(--gris-borde)', borderRadius: '8px',
+    padding: '8px 14px', color: 'var(--texto)', fontSize: '13px', fontWeight: 500,
   },
   buscador: {
-    width: '100%', background: 'var(--gris-oscuro)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '12px', padding: '12px 16px', color: 'var(--texto)', fontSize: '14px',
+    width: '100%', background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
+    borderRadius: '10px', padding: '12px 16px', color: 'var(--texto)', fontSize: '14px',
     outline: 'none', marginBottom: '20px',
   },
   tarjeta: {
-    background: 'var(--gris-oscuro)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '20px', padding: '20px',
+    background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
+    borderRadius: '14px', padding: '18px',
   },
   label: {
     display: 'block', fontSize: '13px', color: 'var(--texto-suave)', marginTop: '14px',
     marginBottom: '5px', fontWeight: 500,
   },
   input: {
-    width: '100%', background: 'var(--negro)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '10px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none',
+    width: '100%', background: 'var(--negro)', border: '1px solid var(--gris-borde)',
+    borderRadius: '9px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none',
   },
 };

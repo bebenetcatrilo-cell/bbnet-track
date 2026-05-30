@@ -296,23 +296,23 @@ function Tarjeta({ label, valor, color }: { label: string; valor: string; color:
 const s: { [k: string]: React.CSSProperties } = {
   botonPrimario: {
     background: 'linear-gradient(135deg, var(--azul-electrico), var(--azul-brillante))',
-    border: 'none', borderRadius: '12px', padding: '12px 20px', color: '#fff',
+    border: 'none', borderRadius: '10px', padding: '11px 18px', color: '#fff',
     fontSize: '14px', fontWeight: 600, boxShadow: '0 6px 18px var(--azul-glow)',
   },
   botonChico: {
-    background: 'var(--gris-medio)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px',
-    padding: '9px 16px', color: 'var(--texto)', fontSize: '13px', fontWeight: 500,
+    background: 'var(--gris-medio)', border: '1px solid var(--gris-borde)', borderRadius: '8px',
+    padding: '8px 14px', color: 'var(--texto)', fontSize: '13px', fontWeight: 500,
   },
   tarjeta: {
-    background: 'var(--gris-oscuro)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '20px', padding: '20px',
+    background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
+    borderRadius: '14px', padding: '18px',
   },
   th: { textAlign: 'left', padding: '12px 18px', fontWeight: 600 },
   td: { padding: '13px 18px' },
   chip: { fontSize: '12px', padding: '4px 10px', borderRadius: '6px', fontWeight: 600, whiteSpace: 'nowrap' },
   label: { display: 'block', fontSize: '13px', color: 'var(--texto-suave)', marginTop: '12px', marginBottom: '5px', fontWeight: 500 },
   input: {
-    width: '100%', background: 'var(--negro)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '10px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none',
+    width: '100%', background: 'var(--negro)', border: '1px solid var(--gris-borde)',
+    borderRadius: '9px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none',
   },
 };

@@ -256,7 +256,7 @@ export default function PaginaPlanes() {
 const s: { [k: string]: React.CSSProperties } = {
   botonPrimario: {
     background: 'linear-gradient(135deg, var(--azul-electrico), var(--azul-brillante))',
-    border: 'none', borderRadius: '12px', padding: '12px 20px', color: '#fff',
+    border: 'none', borderRadius: '10px', padding: '11px 18px', color: '#fff',
     fontSize: '14px', fontWeight: 600, boxShadow: '0 6px 18px var(--azul-glow)',
   },
   botonChico: {
@@ -272,7 +272,7 @@ const s: { [k: string]: React.CSSProperties } = {
     marginBottom: '5px', fontWeight: 500,
   },
   input: {
-    width: '100%', background: 'var(--negro)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '10px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none',
+    width: '100%', background: 'var(--negro)', border: '1px solid var(--gris-borde)',
+    borderRadius: '9px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none',
   },
 };

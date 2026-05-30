@@ -452,7 +452,7 @@ function Tarjeta({ label, valor, color }: { label: string; valor: string; color:
 const s: { [k: string]: React.CSSProperties } = {
   botonPrimario: {
     background: 'linear-gradient(135deg, var(--azul-electrico), var(--azul-brillante))',
-    border: 'none', borderRadius: '12px', padding: '12px 20px', color: '#fff',
+    border: 'none', borderRadius: '10px', padding: '11px 18px', color: '#fff',
     fontSize: '14px', fontWeight: 600, boxShadow: '0 6px 18px var(--azul-glow)', height: '44px',
   },
   label: { display: 'block', fontSize: '13px', color: 'var(--texto-suave)', marginBottom: '5px', fontWeight: 500 },
@@ -461,8 +461,8 @@ const s: { [k: string]: React.CSSProperties } = {
     padding: '11px 14px', color: 'var(--texto)', fontSize: '13px', fontWeight: 600, height: '44px', whiteSpace: 'nowrap',
   },
   input: {
-    width: '100%', background: 'var(--negro)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '10px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none', height: '44px',
+    width: '100%', background: 'var(--negro)', border: '1px solid var(--gris-borde)',
+    borderRadius: '9px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none', height: '44px',
   },
   aviso: {
     position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',

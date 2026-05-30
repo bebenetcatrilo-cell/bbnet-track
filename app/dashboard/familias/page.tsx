@@ -531,25 +531,25 @@ const s: { [k: string]: React.CSSProperties } = {
   // para reforzar visualmente que es otro producto/sector.
   botonPrimario: {
     background: 'linear-gradient(135deg, #ffb020, #ff8c00)',
-    border: 'none', borderRadius: '12px', padding: '12px 20px', color: '#fff',
+    border: 'none', borderRadius: '10px', padding: '11px 18px', color: '#fff',
     fontSize: '14px', fontWeight: 600, boxShadow: '0 6px 18px rgba(255,176,32,0.25)',
     cursor: 'pointer',
   },
   botonChico: {
-    background: 'var(--gris-medio)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px',
-    padding: '9px 16px', color: 'var(--texto)', fontSize: '13px', fontWeight: 500,
+    background: 'var(--gris-medio)', border: '1px solid var(--gris-borde)', borderRadius: '8px',
+    padding: '8px 14px', color: 'var(--texto)', fontSize: '13px', fontWeight: 500,
     cursor: 'pointer',
   },
   tarjeta: {
-    background: 'var(--gris-oscuro)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '20px', padding: '20px',
+    background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
+    borderRadius: '14px', padding: '18px',
   },
   label: {
     display: 'block', fontSize: '13px', color: 'var(--texto-suave)', marginTop: '12px',
     marginBottom: '5px', fontWeight: 500,
   },
   input: {
-    width: '100%', background: 'var(--negro)', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '10px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none',
+    width: '100%', background: 'var(--negro)', border: '1px solid var(--gris-borde)',
+    borderRadius: '9px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none',
   },
 };
