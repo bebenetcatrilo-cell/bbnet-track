@@ -79,6 +79,9 @@ export default function PaginaReportes() {
   const [filas, setFilas] = useState<ResumenVehiculo[]>([]);
   const [kmPorDia, setKmPorDia] = useState<DiaKm[]>([]);
 
+  // Validación de acceso premium (interruptor "reportes" del plan)
+  const [tieneAcceso, setTieneAcceso] = useState<boolean | null>(null);
+
   function distanciaKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -147,6 +150,31 @@ export default function PaginaReportes() {
 
   useEffect(() => {
     async function cargar() {
+      // 1) Verificar que el plan del cliente tenga reportes activado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setTieneAcceso(false); return; }
+
+      const { data: perfil } = await supabase
+        .from('users')
+        .select('company_id, companies(plan)')
+        .eq('id', user.id)
+        .single();
+
+      const planCodigo = (perfil?.companies as any)?.plan;
+      if (!planCodigo) { setTieneAcceso(false); return; }
+
+      const { data: plan } = await supabase
+        .from('planes')
+        .select('reportes')
+        .eq('codigo', planCodigo)
+        .maybeSingle();
+
+      const tiene = plan?.reportes === true;
+      setTieneAcceso(tiene);
+
+      if (!tiene) return;
+
+      // 2) Si tiene acceso, cargar vehículos
       const miEmpresa = await getMiCompanyId();
       const { data } = await supabase
         .from('vehicles')
@@ -162,9 +190,9 @@ export default function PaginaReportes() {
   }, []);
 
   useEffect(() => {
-    calcular();
+    if (tieneAcceso) calcular();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [periodo, usaFechas, fechaDesde, fechaHasta, vista, vehiculoSel]);
+  }, [periodo, usaFechas, fechaDesde, fechaHasta, vista, vehiculoSel, tieneAcceso]);
 
   function rangoFechas(): { desde: Date; hasta: Date } {
     if (usaFechas) {
@@ -381,6 +409,25 @@ export default function PaginaReportes() {
     ventana.document.close();
     // Le damos un momentito para que cargue todo y abrimos el diálogo de imprimir
     setTimeout(() => ventana.print(), 400);
+  }
+
+  // Pantalla "sin acceso" cuando el plan del cliente no incluye reportes
+  if (tieneAcceso === false) {
+    return (
+      <div style={{
+        background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
+        borderRadius: '14px', padding: '50px', textAlign: 'center', marginTop: '20px',
+      }}>
+        <div style={{ fontSize: '40px', marginBottom: '12px' }}>📊</div>
+        <div style={{ fontSize: '18px', fontWeight: 700 }}>Reportes</div>
+        <div style={{ fontSize: '14px', color: 'var(--texto-suave)', marginTop: '8px', maxWidth: '440px', margin: '8px auto 0' }}>
+          Esta función es premium. Con Reportes podés ver estadísticas detalladas de tu flota: kilómetros recorridos, velocidades máximas, tiempo en movimiento, paradas, y mucho más.
+        </div>
+        <div style={{ marginTop: '20px', padding: '8px 16px', background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)', borderRadius: '20px', fontSize: '13px', color: 'var(--verde-online)', fontWeight: 600, display: 'inline-block' }}>
+          Hablá con tu proveedor para activarla
+        </div>
+      </div>
+    );
   }
 
   return (
