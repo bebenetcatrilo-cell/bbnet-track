@@ -234,12 +234,12 @@ function Tarjeta({ label, valor, sufijo, color, esTexto }: { label: string; valo
 }
 
 const s: { [k: string]: React.CSSProperties } = {
-  tarjeta: { background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)', borderRadius: '14px', padding: '18px' },
+  tarjeta: { background: 'var(--gris-oscuro)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '20px' },
   th: { textAlign: 'left', padding: '12px 18px', fontWeight: 600 },
   td: { padding: '13px 18px' },
   label: { display: 'block', fontSize: '13px', color: 'var(--texto-suave)', marginBottom: '5px', fontWeight: 500 },
   input: {
-    width: '100%', background: 'var(--negro)', border: '1px solid var(--gris-borde)',
-    borderRadius: '9px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none',
+    width: '100%', background: 'var(--negro)', border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '10px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none',
   },
 };
