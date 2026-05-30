@@ -1,0 +1,23 @@
+{
+  "name": "BBNet Track · Seguimiento Inteligente GPS",
+  "short_name": "BBNet Track",
+  "description": "Sistema de seguimiento operativo de flotas y empleados",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0a0e14",
+  "theme_color": "#0066ff",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
