@@ -59,6 +59,24 @@ body {
   font-feature-settings: 'tnum' 1;
 }
 
+/* Estilo de PLACA (patente de auto): recuadro con borde, fuente monospace,
+   letras espaciadas. Hace que la patente se vea como una placa real, look
+   profesional como las apps de rastreo modernas.
+   Uso: <span className="placa">AB 123 CD</span> */
+.placa {
+  display: inline-block;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--texto);
+  background: var(--gris-medio);
+  border: 1px solid var(--gris-borde);
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
 /* Atmósfera: un leve resplandor azul de fondo, sutil */
 body::before {
   content: '';
