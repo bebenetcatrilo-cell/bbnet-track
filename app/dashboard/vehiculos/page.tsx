@@ -220,19 +220,24 @@ export default function PaginaVehiculos() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
           {vehiculosFiltrados.map((v) => (
             <div key={v.id} style={s.tarjeta}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontSize: '16px', fontWeight: 700 }}>{v.nombre}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--texto-suave)', marginTop: '2px', textTransform: 'capitalize' }}>
-                    {v.tipo}{v.patente ? ` · ${v.patente}` : ''}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: '17px', fontWeight: 700, lineHeight: 1.2 }}>{v.nombre}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+                    {v.patente && <span className="placa">{v.patente}</span>}
+                    <span style={{ fontSize: '12.5px', color: 'var(--texto-suave)', textTransform: 'capitalize' }}>
+                      {v.tipo}
+                    </span>
                   </div>
                 </div>
                 <span style={{
-                  fontSize: '11px', padding: '3px 8px', borderRadius: '6px', fontWeight: 600,
+                  fontSize: '11px', padding: '4px 10px', borderRadius: '99px', fontWeight: 600,
                   background: v.activo ? 'rgba(34,217,122,0.15)' : 'var(--gris-medio)',
                   color: v.activo ? 'var(--verde-online)' : 'var(--texto-tenue)',
+                  border: v.activo ? '1px solid rgba(34,217,122,0.25)' : '1px solid rgba(255,255,255,0.06)',
+                  whiteSpace: 'nowrap',
                 }}>
-                  {v.activo ? 'Activo' : 'Inactivo'}
+                  {v.activo ? '● Activo' : '○ Inactivo'}
                 </span>
               </div>
 
@@ -330,28 +335,29 @@ export default function PaginaVehiculos() {
 const s: { [k: string]: React.CSSProperties } = {
   botonPrimario: {
     background: 'linear-gradient(135deg, var(--azul-electrico), var(--azul-brillante))',
-    border: 'none', borderRadius: '10px', padding: '11px 18px', color: '#fff',
+    border: 'none', borderRadius: '12px', padding: '12px 20px', color: '#fff',
     fontSize: '14px', fontWeight: 600, boxShadow: '0 6px 18px var(--azul-glow)',
   },
   botonChico: {
-    background: 'var(--gris-medio)', border: '1px solid var(--gris-borde)', borderRadius: '8px',
-    padding: '8px 14px', color: 'var(--texto)', fontSize: '13px', fontWeight: 500,
+    background: 'var(--gris-medio)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px',
+    padding: '9px 16px', color: 'var(--texto)', fontSize: '13px', fontWeight: 500,
   },
   buscador: {
-    width: '100%', background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
-    borderRadius: '10px', padding: '12px 16px', color: 'var(--texto)', fontSize: '14px',
+    width: '100%', background: 'var(--gris-oscuro)', border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '12px', padding: '12px 16px', color: 'var(--texto)', fontSize: '14px',
     outline: 'none', marginBottom: '20px',
   },
   tarjeta: {
-    background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
-    borderRadius: '14px', padding: '18px',
+    background: 'var(--gris-oscuro)', border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '20px', padding: '20px',
+    transition: 'border-color 0.2s, transform 0.2s',
   },
   label: {
     display: 'block', fontSize: '13px', color: 'var(--texto-suave)', marginTop: '14px',
     marginBottom: '5px', fontWeight: 500,
   },
   input: {
-    width: '100%', background: 'var(--negro)', border: '1px solid var(--gris-borde)',
-    borderRadius: '9px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none',
+    width: '100%', background: 'var(--negro)', border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '10px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px', outline: 'none',
   },
 };
