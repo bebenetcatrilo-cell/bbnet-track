@@ -5,6 +5,14 @@
    logística/GPS. Colores: negro, azul eléctrico, gris oscuro.
    ============================================================================ */
 
+/* Tipografía de marca:
+   - Plus Jakarta Sans: para todos los textos del sistema. Más moderna y
+     elegante que la fuente de Windows por defecto. Da look "premium".
+   - JetBrains Mono: para números, IMEIs, patentes, coordenadas. Hace que
+     los números queden alineados y se vean profesionales (tipo dashboards
+     de empresas serias). */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 :root {
   /* Paleta principal */
   --negro:           #0a0e14;   /* fondo más oscuro */
@@ -39,8 +47,16 @@ html, body {
 body {
   background: var(--negro);
   color: var(--texto);
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Clase utilitaria para textos monoespaciados (números, IMEIs, patentes).
+   Uso: <span className="mono">152.000</span>
+   Hace que los dígitos queden alineados verticalmente, look pro de dashboard. */
+.mono {
+  font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+  font-feature-settings: 'tnum' 1;
 }
 
 /* Atmósfera: un leve resplandor azul de fondo, sutil */
