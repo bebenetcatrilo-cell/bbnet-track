@@ -122,25 +122,28 @@ export default function Sidebar({ empresa, rol }: { empresa: string; rol?: strin
         flexShrink: 0,
       }}
     >
-      {/* Marca */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '0 8px', marginBottom: '28px' }}>
+      {/* Marca · isotipo (la B con el pin) sin texto */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '4px 8px 4px',
+        marginBottom: '24px',
+      }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-sidebar.png"
+          alt="BBNet Track"
+          style={{ width: '120px', height: 'auto', display: 'block' }}
+        />
+        {/* Nombre de la empresa del usuario, abajo del logo */}
         <div style={{
-          width: '38px', height: '38px', borderRadius: '10px',
-          background: 'linear-gradient(135deg, var(--azul-electrico), var(--azul-brillante))',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 6px 18px var(--azul-glow)', flexShrink: 0,
+          fontSize: '11px',
+          color: 'var(--texto-tenue)',
+          marginTop: '8px',
+          textAlign: 'center',
         }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
-              stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
-            <circle cx="12" cy="9" r="2.5" fill="#fff" />
-          </svg>
-        </div>
-        <div>
-          <div style={{ fontSize: '16px', fontWeight: 700, lineHeight: 1 }}>
-            BBNet <span style={{ color: 'var(--azul-electrico)' }}>Track</span>
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--texto-tenue)', marginTop: '3px' }}>{empresa}</div>
+          {empresa}
         </div>
       </div>
 
