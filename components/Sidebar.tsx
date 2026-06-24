@@ -25,6 +25,14 @@ const items = [
   { href: '/dashboard/reportes', label: 'Reportes', icono: 'reportes', proximo: false },
 ];
 
+// Item NUEVO: Corte combustible (solo Premium y super-admin)
+const itemCorteCombustible = {
+  href: '/dashboard/corte-combustible',
+  label: 'Corte combustible',
+  icono: 'alertas',
+  proximo: false,
+};
+
 // Secciones del negocio EMPRESA (lo que ya estaba)
 const itemsEmpresa = [
   { href: '/dashboard/mapa-general', label: 'Mapa General', icono: 'mapa', proximo: false },
@@ -44,7 +52,7 @@ const itemsFamilia = [
 
 const ANCHO_CELULAR = 768;
 
-export default function Sidebar({ empresa, rol }: { empresa: string; rol?: string }) {
+export default function Sidebar({ empresa, rol, plan }: { empresa: string; rol?: string; plan?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
@@ -54,6 +62,8 @@ export default function Sidebar({ empresa, rol }: { empresa: string; rol?: strin
   const [sector, setSector] = useState<'empresa' | 'familia'>('empresa'); // pestaña de negocio
 
   const esSuperAdmin = rol === 'super_admin';
+  // Mostramos "Corte combustible" si: es super-admin O el cliente tiene plan='premium'
+  const verCorteCombustible = esSuperAdmin || String(plan || '').toLowerCase() === 'premium';
 
   // Detectar tamaño de pantalla
   useEffect(() => {
@@ -148,6 +158,9 @@ export default function Sidebar({ empresa, rol }: { empresa: string; rol?: strin
       <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
         {/* Secciones normales (las ven todos) */}
         {items.map((item) => renderBoton(item))}
+
+        {/* Item NUEVO: Corte combustible (solo Premium o super-admin) */}
+        {verCorteCombustible && renderBoton(itemCorteCombustible)}
 
         {/* Zona ADMINISTRACIÓN con selector de negocio (solo super_admin) */}
         {esSuperAdmin && (
