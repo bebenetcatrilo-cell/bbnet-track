@@ -110,13 +110,12 @@ export default function PaginaCorteCombustible() {
     }
 
     setPlanEmpresa(plan);
-    const premium = String(plan).toLowerCase() === 'premium' || sa;
-    setTienePlanPremium(premium);
 
-    if (!premium) {
-      setCargando(false);
-      return;
-    }
+    // Permitimos acceso a la pantalla SIEMPRE (a admins y super-admin).
+    // La validación de plan Premium se hace en la función SQL del backend
+    // (ejecutar_corte_combustible), que es donde realmente importa.
+    // Esto evita problemas de RLS bloqueando lectura de companies en el frontend.
+    setTienePlanPremium(true);
 
     // 2) Vehículos
     //    - Super-admin ve TODOS los vehículos con dispositivo tipo=gps
