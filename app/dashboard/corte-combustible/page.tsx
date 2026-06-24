@@ -84,9 +84,13 @@ export default function PaginaCorteCombustible() {
       return;
     }
 
+    // Hacemos 2 consultas separadas para evitar problemas con políticas RLS
+    // que a veces bloquean el JOIN automático de Supabase.
+
+    // 1.a) Datos del usuario
     const { data: userData } = await supabase
       .from('users')
-      .select('*, companies(plan, nombre)')
+      .select('id, nombre, email, rol, company_id, activo')
       .eq('id', user.id)
       .single();
 
@@ -94,17 +98,17 @@ export default function PaginaCorteCombustible() {
     const sa = user.id === SUPER_ADMIN_UID || userData?.rol === 'super_admin';
     setEsSuperAdmin(sa);
 
-    // Leer el plan de la empresa.
-    // Supabase a veces devuelve la relación 'companies' como objeto, otras veces como array.
-    // Manejamos ambos casos para que funcione siempre.
+    // 1.b) Datos de la empresa (plan, nombre) usando el company_id del usuario
     let plan = '';
-    if (userData?.companies) {
-      if (Array.isArray(userData.companies)) {
-        plan = userData.companies[0]?.plan || '';
-      } else {
-        plan = (userData.companies as any)?.plan || '';
-      }
+    if (userData?.company_id) {
+      const { data: empresaData } = await supabase
+        .from('companies')
+        .select('plan, nombre')
+        .eq('id', userData.company_id)
+        .single();
+      plan = empresaData?.plan || '';
     }
+
     setPlanEmpresa(plan);
     const premium = String(plan).toLowerCase() === 'premium' || sa;
     setTienePlanPremium(premium);
