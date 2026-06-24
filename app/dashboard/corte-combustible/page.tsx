@@ -202,10 +202,9 @@ export default function PaginaCorteCombustible() {
 
   // Auto-actualizar cada 15 segundos para ver el estado en vivo
   useEffect(() => {
-    if (!tienePlanPremium) return;
     const interval = setInterval(cargarDatos, 15000);
     return () => clearInterval(interval);
-  }, [tienePlanPremium, cargarDatos]);
+  }, [cargarDatos]);
 
   // ============================================================================
   // Ejecutar acción
@@ -278,27 +277,6 @@ export default function PaginaCorteCombustible() {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--texto-suave)' }}>
         Cargando...
-      </div>
-    );
-  }
-
-  // Pantalla bloqueada si no tiene plan Premium
-  if (!tienePlanPremium) {
-    return (
-      <div style={{ padding: '40px', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
-        <div style={{ fontSize: '64px', marginBottom: '20px' }}>🔒</div>
-        <h1 style={{ fontSize: '28px', marginBottom: '12px' }}>Función Premium</h1>
-        <p style={{ color: 'var(--texto-suave)', marginBottom: '24px', lineHeight: 1.6 }}>
-          El corte de combustible es una función exclusiva del <b>plan Premium</b>.
-          {' '}Te permite cortar y restablecer el combustible de tus vehículos de forma remota
-          {' '}en caso de robo, mantenimiento o emergencia.
-        </p>
-        <p style={{ color: 'var(--texto-suave)' }}>
-          Tu plan actual: <b>{planEmpresa || 'sin plan'}</b>
-        </p>
-        <p style={{ marginTop: '24px' }}>
-          Para activarlo, comunicate con tu proveedor BBNet Security.
-        </p>
       </div>
     );
   }
