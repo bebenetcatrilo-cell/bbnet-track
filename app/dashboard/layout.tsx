@@ -29,15 +29,16 @@ export default async function DashboardLayout({
   // Traemos el perfil del usuario (nombre, rol) y los datos de su empresa
   const { data: perfil } = await supabase
     .from('users')
-    .select('nombre, rol, companies(nombre, activo)')
+    .select('nombre, rol, companies(nombre, activo, plan)')
     .eq('id', user.id)
     .single();
 
   const nombreUsuario = perfil?.nombre ?? 'Usuario';
   const rol = perfil?.rol ?? 'operario';
   // companies puede venir como objeto; tomamos los datos con cuidado
-  const empresaData = perfil?.companies as { nombre?: string; activo?: boolean } | null;
+  const empresaData = perfil?.companies as { nombre?: string; activo?: boolean; plan?: string } | null;
   const empresa = empresaData?.nombre ?? 'Mi empresa';
+  const plan = empresaData?.plan ?? '';
 
   // CORTE DE SERVICIO: si la empresa está suspendida y NO es super_admin,
   // no puede entrar al sistema (mostramos pantalla de cuenta suspendida).
@@ -69,7 +70,7 @@ export default async function DashboardLayout({
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-      <Sidebar empresa={empresa} rol={rol} />
+      <Sidebar empresa={empresa} rol={rol} plan={plan} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Header superior */}
