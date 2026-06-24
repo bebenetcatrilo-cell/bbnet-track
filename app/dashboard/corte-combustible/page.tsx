@@ -94,7 +94,17 @@ export default function PaginaCorteCombustible() {
     const sa = user.id === SUPER_ADMIN_UID || userData?.rol === 'super_admin';
     setEsSuperAdmin(sa);
 
-    const plan = userData?.companies?.plan || '';
+    // Leer el plan de la empresa.
+    // Supabase a veces devuelve la relación 'companies' como objeto, otras veces como array.
+    // Manejamos ambos casos para que funcione siempre.
+    let plan = '';
+    if (userData?.companies) {
+      if (Array.isArray(userData.companies)) {
+        plan = userData.companies[0]?.plan || '';
+      } else {
+        plan = (userData.companies as any)?.plan || '';
+      }
+    }
     setPlanEmpresa(plan);
     const premium = String(plan).toLowerCase() === 'premium' || sa;
     setTienePlanPremium(premium);
