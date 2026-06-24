@@ -126,7 +126,7 @@ export default function PaginaCorteCombustible() {
         id, nombre, patente, marca, modelo, company_id, corte_habilitado, corte_activo,
         tracker_devices!inner(device_uid, tipo, nombre, activo)
       `)
-      .eq('tracker_devices.tipo', 'gps')
+      .eq('tracker_devices.tipo', 'gps_cableado')
       .eq('tracker_devices.activo', true);
 
     if (!sa) {
