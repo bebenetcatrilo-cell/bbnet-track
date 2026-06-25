@@ -118,60 +118,81 @@ export default function PaginaCorteCombustible() {
     setTienePlanPremium(true);
 
     // 2) Vehículos
-    //    - Super-admin ve TODOS los vehículos con dispositivo tipo=gps
-    //    - Cliente normal ve solo los suyos con dispositivo tipo=gps
-    let queryVeh = supabase
-      .from('vehicles')
-      .select(`
-        id, nombre, patente, marca, modelo, company_id, corte_habilitado, corte_activo,
-        tracker_devices!inner(device_uid, tipo, nombre, activo)
-      `)
-      .eq('tracker_devices.tipo', 'gps_cableado')
-      .eq('tracker_devices.activo', true);
+    //    Estrategia: hacer 2 queries SIMPLES en lugar de un JOIN con !inner,
+    //    porque el JOIN inner+RLS estaba devolviendo vacío en el frontend
+    //    aunque los datos existían.
+    //
+    //    PASO A: traemos todos los dispositivos GPS cableados activos
+    //    PASO B: traemos los vehículos que tienen esos dispositivos
+
+    // PASO A: dispositivos
+    let queryDev = supabase
+      .from('tracker_devices')
+      .select('vehicle_id, device_uid, tipo, nombre, activo, company_id')
+      .eq('tipo', 'gps_cableado')
+      .eq('activo', true);
 
     if (!sa) {
-      queryVeh = queryVeh.eq('company_id', userData.company_id);
+      queryDev = queryDev.eq('company_id', userData.company_id);
     }
 
-    const { data: vehData } = await queryVeh.order('nombre');
+    const { data: devicesData } = await queryDev;
+    const dispositivos = devicesData || [];
 
-    // Última velocidad de cada uno
-    const vehIds = (vehData || []).map((v: any) => v.id);
-    const ultimasUbicacionesMap: Record<string, { velocidad: number; fecha: string }> = {};
-    if (vehIds.length > 0) {
-      const { data: locs } = await supabase
-        .from('locations')
-        .select('vehicle_id, velocidad, fecha_gps')
-        .in('vehicle_id', vehIds)
-        .order('fecha_gps', { ascending: false })
-        .limit(vehIds.length * 5);
+    // PASO B: vehículos correspondientes
+    const vehicleIds = dispositivos
+      .map((d: any) => d.vehicle_id)
+      .filter((id: any) => id != null);
 
-      (locs || []).forEach((l: any) => {
-        if (!ultimasUbicacionesMap[l.vehicle_id]) {
-          ultimasUbicacionesMap[l.vehicle_id] = { velocidad: l.velocidad, fecha: l.fecha_gps };
-        }
+    let vehiculosFinal: Vehiculo[] = [];
+
+    if (vehicleIds.length > 0) {
+      const { data: vehData } = await supabase
+        .from('vehicles')
+        .select('id, nombre, patente, marca, modelo, company_id, corte_habilitado, corte_activo')
+        .in('id', vehicleIds)
+        .order('nombre');
+
+      const vehiculos = vehData || [];
+
+      // Últimas posiciones
+      const ultimasUbicacionesMap: Record<string, { velocidad: number; fecha: string }> = {};
+      if (vehicleIds.length > 0) {
+        const { data: locs } = await supabase
+          .from('locations')
+          .select('vehicle_id, velocidad, fecha_gps')
+          .in('vehicle_id', vehicleIds)
+          .order('fecha_gps', { ascending: false })
+          .limit(vehicleIds.length * 5);
+
+        (locs || []).forEach((l: any) => {
+          if (!ultimasUbicacionesMap[l.vehicle_id]) {
+            ultimasUbicacionesMap[l.vehicle_id] = { velocidad: l.velocidad, fecha: l.fecha_gps };
+          }
+        });
+      }
+
+      // Combinar vehículos con sus dispositivos
+      vehiculosFinal = vehiculos.map((v: any) => {
+        const dev = dispositivos.find((d: any) => d.vehicle_id === v.id);
+        const ult = ultimasUbicacionesMap[v.id];
+        return {
+          id: v.id,
+          nombre: v.nombre,
+          patente: v.patente,
+          marca: v.marca,
+          modelo: v.modelo,
+          company_id: v.company_id,
+          corte_habilitado: v.corte_habilitado,
+          corte_activo: v.corte_activo,
+          device_uid: dev?.device_uid || null,
+          device_tipo: dev?.tipo || null,
+          device_nombre: dev?.nombre || null,
+          ultima_velocidad: ult?.velocidad ?? null,
+          ultima_fecha: ult?.fecha ?? null,
+        };
       });
     }
-
-    const vehiculosFinal: Vehiculo[] = (vehData || []).map((v: any) => {
-      const dev = Array.isArray(v.tracker_devices) ? v.tracker_devices[0] : v.tracker_devices;
-      const ult = ultimasUbicacionesMap[v.id];
-      return {
-        id: v.id,
-        nombre: v.nombre,
-        patente: v.patente,
-        marca: v.marca,
-        modelo: v.modelo,
-        company_id: v.company_id,
-        corte_habilitado: v.corte_habilitado,
-        corte_activo: v.corte_activo,
-        device_uid: dev?.device_uid || null,
-        device_tipo: dev?.tipo || null,
-        device_nombre: dev?.nombre || null,
-        ultima_velocidad: ult?.velocidad ?? null,
-        ultima_fecha: ult?.fecha ?? null,
-      };
-    });
 
     setVehiculos(vehiculosFinal);
 
