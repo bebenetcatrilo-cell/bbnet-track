@@ -9,12 +9,9 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase-client';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabase = createClient();
 
 const SUPER_ADMIN_UID = 'ac740d86-b133-4235-892b-f974ea24354a';
 
