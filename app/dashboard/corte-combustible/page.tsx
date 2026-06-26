@@ -71,8 +71,11 @@ export default function PaginaCorteCombustible() {
   // Cargar datos
   // ============================================================================
 
-  const cargarDatos = useCallback(async () => {
-    setCargando(true);
+  const cargarDatos = useCallback(async (esRefrescoSilencioso = false) => {
+    // En el refresco automático de cada 15s NO mostramos "Cargando..." a
+    // pantalla completa: hacerlo borra todo lo que está en pantalla y parece
+    // que parpadea o se recarga sola. Solo mostramos el cargando en la 1ra carga.
+    if (!esRefrescoSilencioso) setCargando(true);
 
     // 1) Usuario logueado
     const { data: { user } } = await supabase.auth.getUser();
@@ -224,7 +227,7 @@ export default function PaginaCorteCombustible() {
   // "RESTABLECER", "HABILITAR"). Cuando cierra el modal, vuelve a refrescar solo.
   useEffect(() => {
     if (modalAccion || modalHabilitar) return;
-    const interval = setInterval(cargarDatos, 15000);
+    const interval = setInterval(() => cargarDatos(true), 15000);
     return () => clearInterval(interval);
   }, [cargarDatos, modalAccion, modalHabilitar]);
 
@@ -263,7 +266,7 @@ export default function PaginaCorteCombustible() {
           : `✓ Comando de RESTABLECIMIENTO enviado al GPS de "${vehiculo.nombre}".`,
       });
       setModalAccion(null);
-      cargarDatos();
+      cargarDatos(true);
     } catch (e: any) {
       setMensajeGlobal({ tipo: 'error', texto: `✗ Error: ${e.message}` });
     }
@@ -285,7 +288,7 @@ export default function PaginaCorteCombustible() {
           : `✓ Corte DESHABILITADO en "${vehiculo.nombre}".`,
       });
       setModalHabilitar(null);
-      cargarDatos();
+      cargarDatos(true);
     } catch (e: any) {
       setMensajeGlobal({ tipo: 'error', texto: `✗ Error: ${e.message}` });
     }
