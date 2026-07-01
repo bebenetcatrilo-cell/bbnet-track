@@ -54,6 +54,8 @@ export default function MapaEnVivo() {
   const [vehiculos, setVehiculos] = useState<Posicion[]>([]);
   const [vista, setVista] = useState<'calles' | 'satelital'>('calles');
   const [esCelular, setEsCelular] = useState(false);
+  const [pantallaCompleta, setPantallaCompleta] = useState(false);
+  const [listaAbierta, setListaAbierta] = useState(false);
 
   // Detectar si es celular (para apilar mapa arriba / lista abajo)
   useEffect(() => {
@@ -67,6 +69,28 @@ export default function MapaEnVivo() {
     window.addEventListener('resize', chequear);
     return () => window.removeEventListener('resize', chequear);
   }, []);
+
+  // -------------------------------------------------------------------------
+  // Pantalla completa: agranda el mapa a TODA la pantalla, limpio y claro.
+  // IMPORTANTE: cuando el mapa cambia de tamaño hay que avisarle a Leaflet que
+  // recalcule (invalidateSize); si no, quedan mosaicos grises / mapa roto.
+  // -------------------------------------------------------------------------
+  function togglePantallaCompleta() {
+    setPantallaCompleta((prev) => !prev);
+    setTimeout(() => mapaRef.current?.invalidateSize?.(), 160);
+  }
+
+  // Salir de pantalla completa con la tecla ESC
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && pantallaCompleta) {
+        setPantallaCompleta(false);
+        setTimeout(() => mapaRef.current?.invalidateSize?.(), 160);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pantallaCompleta]);
 
   // -------------------------------------------------------------------------
   // 1) Inicializar el mapa (una sola vez)
@@ -346,14 +370,24 @@ export default function MapaEnVivo() {
     <div style={{
       display: 'flex',
       flexDirection: esCelular ? 'column' : 'row',
-      gap: '18px',
-      height: esCelular ? 'auto' : 'calc(100vh - 140px)',
+      gap: pantallaCompleta ? 0 : '18px',
+      height: pantallaCompleta ? '100vh' : (esCelular ? 'auto' : 'calc(100vh - 140px)'),
+      ...(pantallaCompleta ? {
+        position: 'fixed' as const,
+        inset: 0,
+        zIndex: 9999,
+        background: 'var(--gris-oscuro)',
+        padding: 0,
+      } : {}),
     }}>
       {/* Mapa */}
       <div style={{
-        flex: esCelular ? 'none' : 1,
-        height: esCelular ? '55vh' : 'auto',
-        position: 'relative', borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--gris-borde)',
+        flex: pantallaCompleta ? 1 : (esCelular ? 'none' : 1),
+        height: pantallaCompleta ? '100%' : (esCelular ? '55vh' : 'auto'),
+        position: 'relative',
+        borderRadius: pantallaCompleta ? 0 : '14px',
+        overflow: 'hidden',
+        border: pantallaCompleta ? 'none' : '1px solid var(--gris-borde)',
       }}>
         <div ref={contenedorRef} style={{ width: '100%', height: '100%' }} />
 
@@ -385,6 +419,21 @@ export default function MapaEnVivo() {
           >
             Satelital
           </button>
+
+          <div style={{ width: '1px', background: 'var(--gris-borde)', margin: '3px 2px' }} />
+
+          <button
+            onClick={togglePantallaCompleta}
+            title={pantallaCompleta ? 'Salir de pantalla completa (ESC)' : 'Pantalla completa'}
+            style={{
+              padding: '7px 12px', borderRadius: '7px', border: 'none', fontSize: '13px',
+              fontWeight: 600, background: pantallaCompleta ? 'var(--azul-electrico)' : 'transparent',
+              color: pantallaCompleta ? '#fff' : 'var(--texto-suave)',
+              display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap',
+            }}
+          >
+            {pantallaCompleta ? '✕ Salir' : '⛶ Pantalla completa'}
+          </button>
         </div>
 
         {cargando && (
@@ -396,10 +445,69 @@ export default function MapaEnVivo() {
             Cargando mapa...
           </div>
         )}
+
+        {/* En pantalla completa: lista flotante de vehículos (arriba a la izquierda),
+            colapsable para no tapar el mapa. Reemplaza al panel lateral, que se
+            esconde para dar la vista amplia y clara. */}
+        {pantallaCompleta && (
+          <div style={{
+            position: 'absolute', top: '12px', left: '12px', zIndex: 1000,
+            background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
+            borderRadius: '10px', boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
+            width: '250px', overflow: 'hidden',
+          }}>
+            <button
+              onClick={() => setListaAbierta((v) => !v)}
+              style={{
+                width: '100%', padding: '11px 14px', border: 'none', background: 'transparent',
+                color: '#fff', fontSize: '13px', fontWeight: 700, textAlign: 'left', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
+              }}
+            >
+              <span>Vehículos ({vehiculos.length})</span>
+              <span style={{ color: 'var(--texto-suave)', fontSize: '11px' }}>{listaAbierta ? '▲ ocultar' : '▼ ver'}</span>
+            </button>
+            {listaAbierta && (
+              <div style={{ maxHeight: '65vh', overflowY: 'auto', padding: '0 10px 10px' }}>
+                {vehiculos.length === 0 && (
+                  <div style={{ fontSize: '12px', color: 'var(--texto-suave)', padding: '4px 4px 8px' }}>
+                    Todavía no hay posiciones.
+                  </div>
+                )}
+                {vehiculos.map((v) => (
+                  <div
+                    key={v.vehicle_id}
+                    onClick={() => {
+                      const m = marcadoresRef.current[v.vehicle_id];
+                      if (m && mapaRef.current) {
+                        mapaRef.current.setView([v.latitud, v.longitud], 15);
+                        m.openPopup();
+                      }
+                    }}
+                    style={{
+                      padding: '9px 10px', borderRadius: '8px', background: 'var(--gris-medio)',
+                      marginBottom: '6px', cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--verde-online)', display: 'inline-block' }} />
+                      <span style={{ fontSize: '13px', fontWeight: 600 }}>{v.nombre}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--texto-suave)', marginTop: '4px' }}>
+                      {Math.round(v.velocidad)} km/h · batería {v.bateria != null ? `${v.bateria}%` : '—'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Panel lateral (en celular: ancho completo, debajo del mapa) */}
+      {/* Panel lateral (en celular: ancho completo, debajo del mapa).
+          En pantalla completa se esconde: usamos la lista flotante del mapa. */}
       <div style={{
+        display: pantallaCompleta ? 'none' : 'block',
         width: esCelular ? '100%' : '280px',
         flexShrink: 0,
         background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
