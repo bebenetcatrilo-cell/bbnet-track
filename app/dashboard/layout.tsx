@@ -12,6 +12,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import { APP_VERSION } from '@/lib/version';
 
 export default async function DashboardLayout({
   children,
@@ -68,6 +69,11 @@ export default async function DashboardLayout({
     );
   }
 
+  // Código corto del deploy actual (lo pone Vercel solo en cada publicación).
+  // Cambia en cada deploy, así confirmás que tu cambio ya subió. En local no
+  // existe, por eso mostramos 'local'.
+  const commitCorto = (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7) || 'local';
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
       <Sidebar empresa={empresa} rol={rol} plan={plan} />
@@ -114,6 +120,23 @@ export default async function DashboardLayout({
 
         {/* Contenido de cada página */}
         <main className="dash-main" style={{ flex: 1, padding: '28px' }}>{children}</main>
+      </div>
+
+      {/* Cartel de versión, abajo a la izquierda. Se ve en todo el panel.
+          Muestra la versión (que manejás en lib/version.ts) y el código del
+          deploy actual (que cambia solo en cada publicación de Vercel).
+          pointerEvents:'none' → nunca tapa ni bloquea clics. z-index bajo →
+          queda por debajo del mapa en pantalla completa. */}
+      <div style={{
+        position: 'fixed', bottom: '10px', left: '12px', zIndex: 50,
+        fontSize: '11px', color: 'var(--texto-suave)',
+        background: 'rgba(19,24,34,0.72)', backdropFilter: 'blur(6px)',
+        border: '1px solid var(--gris-borde)', borderRadius: '8px',
+        padding: '4px 9px', pointerEvents: 'none',
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        letterSpacing: '0.3px',
+      }}>
+        BBNet Track {APP_VERSION} · {commitCorto}
       </div>
     </div>
   );
