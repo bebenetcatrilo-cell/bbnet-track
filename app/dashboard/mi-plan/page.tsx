@@ -85,6 +85,9 @@ export default function MiPlanPage() {
         <p style={{ color: 'var(--texto-suave)', fontSize: '14px', marginTop: '4px' }}>
           Estos son los planes disponibles. Si querés cambiar, tocá el botón y nos escribís por WhatsApp.
         </p>
+        <p style={{ color: 'var(--texto-suave)', fontSize: '12px', marginTop: '8px', fontStyle: 'italic' }}>
+          * Los precios no incluyen IVA. Se agrega el 21% al valor de cada plan.
+        </p>
       </div>
 
       {cargando ? (
