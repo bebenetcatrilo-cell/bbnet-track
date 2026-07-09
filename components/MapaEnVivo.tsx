@@ -161,50 +161,49 @@ export default function MapaEnVivo() {
   async function cargarPosicionesIniciales() {
     // Solo las posiciones de NUESTRA empresa (los clientes se ven en Servicio)
     const miEmpresa = await getMiCompanyId();
+    if (!miEmpresa) return;
 
-    // Averiguamos si el plan de esta empresa tiene "seguimiento en vivo" (premium).
-    // 1) buscamos el código de plan de la empresa, 2) miramos si ese plan lo tiene activado.
-    try {
-      const { data: emp } = await supabase
-        .from('companies')
-        .select('plan')
-        .eq('id', miEmpresa)
-        .single();
-      if (emp?.plan) {
-        const { data: plan } = await supabase
-          .from('planes')
-          .select('seguimiento_vivo')
-          .eq('codigo', emp.plan)
-          .single();
-        seguimientoVivoRef.current = plan?.seguimiento_vivo === true;
-      }
-    } catch (_) {
-      seguimientoVivoRef.current = false; // ante cualquier duda, sin efecto
+    // OPTIMIZACIÓN: antes esto iba en FILA (una consulta atrás de otra) y usaba
+    // un JOIN pesado con vehicles. Ahora:
+    //  - Traemos posiciones y vehículos EN PARALELO (salen juntas, no en fila).
+    //  - SIN el join: las posiciones vienen "peladas" (rápido) y los nombres/íconos
+    //    los sacamos de la tabla vehicles por separado (chica, rapidísima).
+    const [posRes, vehRes] = await Promise.all([
+      supabase
+        .from('locations')
+        .select('vehicle_id, latitud, longitud, velocidad, bateria, fecha_gps')
+        .eq('company_id', miEmpresa)
+        .order('fecha_gps', { ascending: false })
+        .limit(200),
+      supabase
+        .from('vehicles')
+        .select('id, nombre, icono')
+        .eq('company_id', miEmpresa),
+    ]);
+
+    if (posRes.error || !posRes.data) return;
+
+    // Diccionario nombre/ícono por vehículo (de la tabla vehicles)
+    const infoVeh: { [id: string]: { nombre: string; icono: string } } = {};
+    for (const v of (vehRes.data as any[]) || []) {
+      infoVeh[v.id] = { nombre: v.nombre ?? 'Vehículo', icono: v.icono ?? 'auto' };
     }
 
-    const { data, error } = await supabase
-      .from('locations')
-      .select('vehicle_id, latitud, longitud, velocidad, bateria, fecha_gps, vehicles(nombre, icono)')
-      .eq('company_id', miEmpresa)
-      .order('fecha_gps', { ascending: false })
-      .limit(200);
-
-    if (error || !data) return;
-
+    // Nos quedamos con la última posición de cada vehículo
     const ultimaPorVehiculo: { [id: string]: Posicion } = {};
-    for (const fila of data as any[]) {
+    for (const fila of posRes.data as any[]) {
       const vid = fila.vehicle_id;
       if (!vid) continue;
       if (!ultimaPorVehiculo[vid]) {
         ultimaPorVehiculo[vid] = {
           vehicle_id: vid,
-          nombre: fila.vehicles?.nombre ?? 'Vehículo',
+          nombre: infoVeh[vid]?.nombre ?? 'Vehículo',
           latitud: fila.latitud,
           longitud: fila.longitud,
           velocidad: fila.velocidad ?? 0,
           bateria: fila.bateria,
           fecha_gps: fila.fecha_gps,
-          icono: fila.vehicles?.icono ?? 'auto',
+          icono: infoVeh[vid]?.icono ?? 'auto',
         };
       }
     }
@@ -212,6 +211,28 @@ export default function MapaEnVivo() {
     const lista = Object.values(ultimaPorVehiculo);
     setVehiculos(lista);
     lista.forEach(dibujarOActualizarMarcador);
+
+    // El chequeo de plan premium (seguimiento en vivo) va DESPUÉS de dibujar el
+    // mapa, para no demorar lo que el usuario ve. Solo afecta la animación suave.
+    try {
+      const { data: emp } = await supabase
+        .from('companies')
+        .select('plan')
+        .eq('id', miEmpresa)
+        .maybeSingle();
+      if (emp?.plan) {
+        const { data: plan } = await supabase
+          .from('planes')
+          .select('seguimiento_vivo')
+          .eq('codigo', emp.plan)
+          .maybeSingle();
+        seguimientoVivoRef.current = plan?.seguimiento_vivo === true;
+      } else {
+        seguimientoVivoRef.current = false;
+      }
+    } catch (_) {
+      seguimientoVivoRef.current = false;
+    }
   }
 
   // Devuelve la imagen del vehículo según su tipo de ícono.
