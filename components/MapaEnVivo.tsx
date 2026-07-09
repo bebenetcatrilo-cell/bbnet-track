@@ -446,31 +446,24 @@ export default function MapaEnVivo() {
           </div>
         )}
 
-        {/* En pantalla completa: lista flotante de vehículos (arriba a la izquierda),
-            colapsable para no tapar el mapa. Reemplaza al panel lateral, que se
-            esconde para dar la vista amplia y clara. */}
+        {/* En pantalla completa: barra de vehículos ABAJO de todo, colapsable.
+            Se despliega hacia arriba. Va abajo para no pisarse con el botón de
+            menú (arriba izq.) ni con los controles (arriba der.). */}
         {pantallaCompleta && (
           <div style={{
-            position: 'absolute', top: '12px', left: '12px', zIndex: 1000,
-            background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
-            borderRadius: '10px', boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
-            width: '250px', overflow: 'hidden',
+            position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1000,
+            display: 'flex', flexDirection: 'column',
+            background: 'var(--gris-oscuro)', borderTop: '1px solid var(--gris-borde)',
+            boxShadow: '0 -4px 14px rgba(0,0,0,0.4)',
           }}>
-            <button
-              onClick={() => setListaAbierta((v) => !v)}
-              style={{
-                width: '100%', padding: '11px 14px', border: 'none', background: 'transparent',
-                color: '#fff', fontSize: '13px', fontWeight: 700, textAlign: 'left', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
-              }}
-            >
-              <span>Vehículos ({vehiculos.length})</span>
-              <span style={{ color: 'var(--texto-suave)', fontSize: '11px' }}>{listaAbierta ? '▲ ocultar' : '▼ ver'}</span>
-            </button>
+            {/* La lista aparece ARRIBA del botón cuando está desplegada */}
             {listaAbierta && (
-              <div style={{ maxHeight: '65vh', overflowY: 'auto', padding: '0 10px 10px' }}>
+              <div style={{
+                maxHeight: '45vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+                padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '6px',
+              }}>
                 {vehiculos.length === 0 && (
-                  <div style={{ fontSize: '12px', color: 'var(--texto-suave)', padding: '4px 4px 8px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--texto-suave)', padding: '4px' }}>
                     Todavía no hay posiciones.
                   </div>
                 )}
@@ -485,21 +478,34 @@ export default function MapaEnVivo() {
                       }
                     }}
                     style={{
-                      padding: '9px 10px', borderRadius: '8px', background: 'var(--gris-medio)',
-                      marginBottom: '6px', cursor: 'pointer',
+                      padding: '10px 12px', borderRadius: '8px', background: 'var(--gris-medio)',
+                      cursor: 'pointer',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--verde-online)', display: 'inline-block' }} />
-                      <span style={{ fontSize: '13px', fontWeight: 600 }}>{v.nombre}</span>
+                      <span style={{ fontSize: '14px', fontWeight: 600 }}>{v.nombre}</span>
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--texto-suave)', marginTop: '4px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--texto-suave)', marginTop: '4px' }}>
                       {Math.round(v.velocidad)} km/h · batería {v.bateria != null ? `${v.bateria}%` : '—'}
                     </div>
                   </div>
                 ))}
               </div>
             )}
+
+            {/* La barra/botón siempre visible, abajo de todo (cómodo para el dedo) */}
+            <button
+              onClick={() => setListaAbierta((v) => !v)}
+              style={{
+                width: '100%', padding: '14px 16px', border: 'none', background: 'transparent',
+                color: '#fff', fontSize: '14px', fontWeight: 700, textAlign: 'left', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
+              }}
+            >
+              <span>Vehículos ({vehiculos.length})</span>
+              <span style={{ color: 'var(--texto-suave)', fontSize: '12px' }}>{listaAbierta ? '▼ ocultar' : '▲ ver'}</span>
+            </button>
           </div>
         )}
       </div>
