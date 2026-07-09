@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import Icono from './Icono';
+import { APP_VERSION } from '@/lib/version';
 
 const items = [
   { href: '/dashboard', label: 'Dashboard', icono: 'dashboard', proximo: false },
@@ -53,7 +54,7 @@ const itemsFamilia = [
 
 const ANCHO_CELULAR = 768;
 
-export default function Sidebar({ empresa, rol, plan }: { empresa: string; rol?: string; plan?: string }) {
+export default function Sidebar({ empresa, rol, plan, commit }: { empresa: string; rol?: string; plan?: string; commit?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
@@ -215,6 +216,14 @@ export default function Sidebar({ empresa, rol, plan }: { empresa: string; rol?:
       </nav>
 
 
+      {/* Versión del sistema (solo se ve dentro del menú, arriba de Salir) */}
+      <div style={{
+        fontSize: '11px', color: 'var(--texto-suave)', textAlign: 'center',
+        marginBottom: '10px', fontFamily: 'ui-monospace, monospace', letterSpacing: '0.3px',
+      }}>
+        BBNet Track {APP_VERSION}{commit ? ` · ${commit}` : ''}
+      </div>
+
       {/* Salir */}
       <button
         onClick={salir}
@@ -247,7 +256,10 @@ export default function Sidebar({ empresa, rol, plan }: { empresa: string; rol?:
       <button
         onClick={() => setAbierto(true)}
         style={{
-          position: 'fixed', top: '14px', left: '14px', zIndex: 1500,
+          position: 'fixed',
+          top: 'calc(env(safe-area-inset-top, 0px) + 18px)',
+          left: 'calc(env(safe-area-inset-left, 0px) + 14px)',
+          zIndex: 1500,
           width: '44px', height: '44px', borderRadius: '11px',
           background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
           color: 'var(--texto)', display: 'flex', flexDirection: 'column',
@@ -272,6 +284,7 @@ export default function Sidebar({ empresa, rol, plan }: { empresa: string; rol?:
             position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 1700,
             overflowY: 'auto',            // ← permite scrollear el menú si no entra en la pantalla
             WebkitOverflowScrolling: 'touch', // scroll suave en iPhone
+            paddingTop: 'env(safe-area-inset-top, 0px)', // no meter el menú bajo la barra de estado
           }}>
             {contenidoMenu}
           </div>
