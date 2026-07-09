@@ -394,7 +394,9 @@ export default function MapaEnVivo() {
         {/* Selector Calles / Satelital (flota arriba a la DERECHA del mapa,
             así no se pisa con los controles de zoom que están a la izquierda) */}
         <div style={{
-          position: 'absolute', top: '12px', right: '12px', zIndex: 1000,
+          position: 'absolute',
+          top: pantallaCompleta ? 'calc(env(safe-area-inset-top, 0px) + 12px)' : '12px',
+          right: 'calc(env(safe-area-inset-right, 0px) + 12px)', zIndex: 1000,
           display: 'flex', background: 'var(--gris-oscuro)', borderRadius: '10px',
           padding: '4px', border: '1px solid var(--gris-borde)', gap: '4px',
           boxShadow: '0 4px 14px rgba(0,0,0,0.4)',

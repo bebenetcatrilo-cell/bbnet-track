@@ -246,7 +246,10 @@ export default function Sidebar({ empresa, rol, plan }: { empresa: string; rol?:
       <button
         onClick={() => setAbierto(true)}
         style={{
-          position: 'fixed', top: '14px', left: '14px', zIndex: 1500,
+          position: 'fixed',
+          top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+          left: 'calc(env(safe-area-inset-left, 0px) + 12px)',
+          zIndex: 1500,
           width: '44px', height: '44px', borderRadius: '11px',
           background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
           color: 'var(--texto)', display: 'flex', flexDirection: 'column',
@@ -271,6 +274,7 @@ export default function Sidebar({ empresa, rol, plan }: { empresa: string; rol?:
             position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 1700,
             overflowY: 'auto',            // ← permite scrollear el menú si no entra en la pantalla
             WebkitOverflowScrolling: 'touch', // scroll suave en iPhone
+            paddingTop: 'env(safe-area-inset-top, 0px)', // no meter el menú bajo la barra de estado
           }}>
             {contenidoMenu}
           </div>
