@@ -144,10 +144,14 @@ export default function PaginaPlanes() {
                 {p.precio_mensual > 0 && <span style={{ fontSize: '13px', color: 'var(--texto-suave)' }}> /mes</span>}
               </div>
 
-              <div style={{ fontSize: '13px', color: 'var(--texto-suave)', borderTop: '1px solid var(--gris-borde)', paddingTop: '12px' }}>
-                <div>📱 Hasta <b style={{ color: 'var(--texto)' }}>{p.limite_dispositivos}</b> dispositivos</div>
-                {p.dias_prueba > 0 && <div style={{ marginTop: '4px' }}>🎁 <b style={{ color: 'var(--texto)' }}>{p.dias_prueba}</b> días de prueba</div>}
-              </div>
+              {(p.limite_dispositivos > 0 || p.dias_prueba > 0) && (
+                <div style={{ fontSize: '13px', color: 'var(--texto-suave)', borderTop: '1px solid var(--gris-borde)', paddingTop: '12px' }}>
+                  {p.limite_dispositivos > 0 && (
+                    <div>📱 Hasta <b style={{ color: 'var(--texto)' }}>{p.limite_dispositivos}</b> dispositivos</div>
+                  )}
+                  {p.dias_prueba > 0 && <div style={{ marginTop: '4px' }}>🎁 <b style={{ color: 'var(--texto)' }}>{p.dias_prueba}</b> días de prueba</div>}
+                </div>
+              )}
 
               <button onClick={() => abrirEditar(p)} style={{ ...s.botonChico, width: '100%', marginTop: '16px' }}>
                 Editar plan
