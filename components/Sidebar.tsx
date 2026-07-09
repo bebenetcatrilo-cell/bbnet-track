@@ -128,7 +128,8 @@ export default function Sidebar({ empresa, rol, plan }: { empresa: string; rol?:
         display: 'flex',
         flexDirection: 'column',
         padding: '22px 16px',
-        height: esCelular ? '100%' : 'auto',
+        height: esCelular ? 'auto' : 'auto',
+        minHeight: esCelular ? '100%' : 'auto', // en celular ocupa toda la altura, y si el contenido es más alto, crece y se puede scrollear
         flexShrink: 0,
       }}
     >
@@ -266,7 +267,11 @@ export default function Sidebar({ empresa, rol, plan }: { empresa: string; rol?:
             onClick={() => setAbierto(false)}
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1600 }}
           />
-          <div style={{ position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 1700 }}>
+          <div style={{
+            position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 1700,
+            overflowY: 'auto',            // ← permite scrollear el menú si no entra en la pantalla
+            WebkitOverflowScrolling: 'touch', // scroll suave en iPhone
+          }}>
             {contenidoMenu}
           </div>
         </>
