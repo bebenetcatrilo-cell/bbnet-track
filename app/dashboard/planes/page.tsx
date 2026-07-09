@@ -123,6 +123,9 @@ export default function PaginaPlanes() {
               borderColor: p.activo ? 'var(--gris-borde)' : 'var(--gris-medio)',
               opacity: p.activo ? 1 : 0.6,
               position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
             }}>
               {p.codigo === 'trial' && (
                 <span style={{
@@ -153,7 +156,7 @@ export default function PaginaPlanes() {
                 </div>
               )}
 
-              <button onClick={() => abrirEditar(p)} style={{ ...s.botonChico, width: '100%', marginTop: '16px' }}>
+              <button onClick={() => abrirEditar(p)} style={{ ...s.botonChico, width: '100%', marginTop: 'auto' }}>
                 Editar plan
               </button>
             </div>
