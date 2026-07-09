@@ -2,12 +2,13 @@
 // LAYOUT RAÍZ · envuelve TODA la aplicación
 // ----------------------------------------------------------------------------
 // Es el "marco" que rodea cada página del sistema. Acá se carga el CSS global,
-// se define el título que aparece en la pestaña del navegador, y se enlazan
-// los favicons (íconos de marca) en sus diferentes tamaños.
+// se define el título que aparece en la pestaña del navegador, se enlazan los
+// favicons, y se muestra la pantalla de bienvenida (splash) al abrir la app.
 // ============================================================================
 
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+import SplashScreen from '@/components/SplashScreen';
 
 export const metadata: Metadata = {
   title: 'BBNet Track · Seguimiento Inteligente GPS',
@@ -22,6 +23,20 @@ export const metadata: Metadata = {
     apple: '/apple-touch-icon.png',
   },
   manifest: '/manifest.json',
+  // Hace que en iPhone, al abrir desde la pantalla de inicio, se vea como app
+  // (sin la barra del navegador) y con el nombre correcto.
+  appleWebApp: {
+    capable: true,
+    title: 'BBNet Track',
+    statusBarStyle: 'black-translucent',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#12151c',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -38,7 +53,11 @@ export default function RootLayout({
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {/* Pantalla de bienvenida con el logo (solo al abrir la app instalada) */}
+        <SplashScreen />
+        {children}
+      </body>
     </html>
   );
 }
