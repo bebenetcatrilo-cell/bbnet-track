@@ -55,6 +55,7 @@ export default function PaginaClientes() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [busqueda, setBusqueda] = useState('');
 
   const [modalAbierto, setModalAbierto] = useState(false);
   const [form, setForm] = useState(FORM_VACIO);
@@ -278,8 +279,40 @@ export default function PaginaClientes() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '14px' }}>
-          {empresas.map((e) => (
+        <>
+          {/* Buscador por nombre (o email) */}
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="🔍 Buscar cliente por nombre..."
+            style={{
+              width: '100%', maxWidth: '420px', marginBottom: '16px',
+              background: 'var(--gris-oscuro)', border: '1px solid var(--gris-borde)',
+              borderRadius: '10px', padding: '11px 14px', color: 'var(--texto)', fontSize: '14px',
+            }}
+          />
+
+          {(() => {
+            const q = busqueda.trim().toLowerCase();
+            const empresasFiltradas = q
+              ? empresas.filter((e) =>
+                  (e.nombre || '').toLowerCase().includes(q) ||
+                  (e.email || '').toLowerCase().includes(q)
+                )
+              : empresas;
+
+            if (empresasFiltradas.length === 0) {
+              return (
+                <div style={{ ...s.tarjeta, textAlign: 'center', padding: '30px', color: 'var(--texto-suave)' }}>
+                  No se encontraron clientes con "{busqueda}".
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '14px' }}>
+                {empresasFiltradas.map((e) => (
             <div key={e.id} style={s.tarjeta}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
@@ -330,7 +363,10 @@ export default function PaginaClientes() {
               </div>
             </div>
           ))}
-        </div>
+                </div>
+              );
+            })()}
+        </>
       )}
 
       {/* VENTANA FLOTANTE: editar cliente existente */}
