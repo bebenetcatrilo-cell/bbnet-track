@@ -1,13 +1,20 @@
 'use client';
 
 // ============================================================================
-// MAPA EN VIVO · con selector Calles / Satelital
+// MAPA EN VIVO · v1.4.0 · Mapa MODERNO (MapLibre)
 // ----------------------------------------------------------------------------
 // Muestra un mapa con los vehículos como puntitos. Cuando llega una posición
 // nueva (Supabase Realtime), el punto se mueve solo.
 //
-// NUEVO: botón arriba para cambiar entre vista de Calles (OpenStreetMap) y
-// vista Satelital (fotos del terreno, de Esri, gratis).
+// NUEVO EN v1.4.0: se cambió el motor del mapa de Leaflet a MapLibre para tener
+// un mapa MODERNO (tipo Google). Tres capas con el botón de arriba:
+//   - Calles   → OpenFreeMap Liberty (moderno, gratis, sin API key)
+//   - Satelital → Esri (fotos del terreno, gratis)
+//   - Híbrido  → Esri satélite + nombres de calles encima
+//
+// MapLibre se carga desde CDN acá adentro, así NO hay que tocar package.json.
+// Si algún día querés volver al mapa viejo, se reemplaza este archivo por el
+// anterior (Leaflet) y listo.
 // ============================================================================
 
 import { useEffect, useRef, useState } from 'react';
@@ -25,34 +32,76 @@ type Posicion = {
   icono?: string;
 };
 
-// Las dos "capas" de fondo disponibles
-const CAPAS = {
-  calles: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '© OpenStreetMap',
-  },
-  satelital: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: '© Esri',
-  },
-};
+type Vista = 'calles' | 'satelital' | 'hibrido';
+
+// Capa de CALLES moderna (OpenFreeMap). Es una URL de estilo vectorial.
+const ESTILO_CALLES = 'https://tiles.openfreemap.org/styles/liberty';
+
+// Arma un estilo de SATÉLITE (Esri). Si conLabels=true, suma los nombres de
+// calles encima (vista Híbrida).
+function estiloSatelital(conLabels: boolean) {
+  const sources: any = {
+    'esri-sat': {
+      type: 'raster',
+      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+      attribution: '© Esri',
+    },
+  };
+  const layers: any[] = [{ id: 'sat', type: 'raster', source: 'esri-sat' }];
+  if (conLabels) {
+    sources['esri-ref'] = {
+      type: 'raster',
+      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+      attribution: '© Esri',
+    };
+    layers.push({ id: 'ref', type: 'raster', source: 'esri-ref' });
+  }
+  return { version: 8, sources, layers };
+}
+
+// Carga la librería MapLibre (JS + CSS) desde CDN una sola vez.
+async function cargarMapLibre(): Promise<any> {
+  if ((window as any).maplibregl) return (window as any).maplibregl;
+
+  // CSS (controles, popups)
+  if (!document.getElementById('maplibre-css')) {
+    const link = document.createElement('link');
+    link.id = 'maplibre-css';
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+    document.head.appendChild(link);
+  }
+
+  // JS
+  await new Promise<void>((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('No se pudo cargar MapLibre'));
+    document.head.appendChild(s);
+  });
+
+  return (window as any).maplibregl;
+}
 
 export default function MapaEnVivo() {
   const supabase = createClient();
 
   const contenedorRef = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<any>(null);
-  const capaFondoRef = useRef<any>(null); // la capa de fondo actual (calles o satelital)
-  const marcadoresRef = useRef<{ [vehicleId: string]: any }>({});
-  const LRef = useRef<any>(null);
+  const mlRef = useRef<any>(null); // la librería maplibregl
+  // Por cada vehículo guardamos su marcador, su popup y su elemento HTML
+  const marcadoresRef = useRef<{ [vehicleId: string]: { marker: any; popup: any; el: HTMLDivElement } }>({});
   // ¿El plan del cliente tiene el "seguimiento en vivo" (efecto Google Maps)?
   const seguimientoVivoRef = useRef<boolean>(false);
-  // Guarda las animaciones en curso de cada vehículo (para cancelarlas si llega otra posición)
+  // Guarda las animaciones en curso de cada vehículo (para cancelarlas si llega otra)
   const animacionesRef = useRef<{ [vehicleId: string]: number }>({});
 
   const [cargando, setCargando] = useState(true);
   const [vehiculos, setVehiculos] = useState<Posicion[]>([]);
-  const [vista, setVista] = useState<'calles' | 'satelital'>('calles');
+  const [vista, setVista] = useState<Vista>('calles');
   const [esCelular, setEsCelular] = useState(false);
   const [pantallaCompleta, setPantallaCompleta] = useState(false);
   const [listaAbierta, setListaAbierta] = useState(false);
@@ -62,22 +111,18 @@ export default function MapaEnVivo() {
     function chequear() {
       const celu = window.innerWidth <= 768;
       setEsCelular(celu);
-      // El mapa necesita recalcular su tamaño cuando cambia el layout
-      setTimeout(() => mapaRef.current?.invalidateSize?.(), 200);
+      setTimeout(() => mapaRef.current?.resize?.(), 200);
     }
     chequear();
     window.addEventListener('resize', chequear);
     return () => window.removeEventListener('resize', chequear);
   }, []);
 
-  // -------------------------------------------------------------------------
-  // Pantalla completa: agranda el mapa a TODA la pantalla, limpio y claro.
-  // IMPORTANTE: cuando el mapa cambia de tamaño hay que avisarle a Leaflet que
-  // recalcule (invalidateSize); si no, quedan mosaicos grises / mapa roto.
-  // -------------------------------------------------------------------------
+  // Pantalla completa: agranda el mapa a TODA la pantalla. MapLibre necesita
+  // resize() cuando cambia de tamaño, si no quedan mosaicos grises.
   function togglePantallaCompleta() {
     setPantallaCompleta((prev) => !prev);
-    setTimeout(() => mapaRef.current?.invalidateSize?.(), 160);
+    setTimeout(() => mapaRef.current?.resize?.(), 160);
   }
 
   // Salir de pantalla completa con la tecla ESC
@@ -85,7 +130,7 @@ export default function MapaEnVivo() {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape' && pantallaCompleta) {
         setPantallaCompleta(false);
-        setTimeout(() => mapaRef.current?.invalidateSize?.(), 160);
+        setTimeout(() => mapaRef.current?.resize?.(), 160);
       }
     }
     window.addEventListener('keydown', onKey);
@@ -99,21 +144,24 @@ export default function MapaEnVivo() {
     let cancelado = false;
 
     async function iniciar() {
-      const L = (await import('leaflet')).default;
+      let maplibregl: any;
+      try {
+        maplibregl = await cargarMapLibre();
+      } catch (e) {
+        if (!cancelado) setCargando(false);
+        return;
+      }
       if (cancelado || !contenedorRef.current) return;
-      LRef.current = L;
+      mlRef.current = maplibregl;
 
-      const mapa = L.map(contenedorRef.current, {
-        center: [-36.41, -64.29],
-        zoom: 11,
-        zoomControl: true,
+      const mapa = new maplibregl.Map({
+        container: contenedorRef.current,
+        style: ESTILO_CALLES,
+        center: [-64.29, -36.41], // OJO: MapLibre usa [longitud, latitud]
+        zoom: 10,
+        attributionControl: { compact: true },
       });
-
-      // Capa de fondo inicial: calles
-      capaFondoRef.current = L.tileLayer(CAPAS.calles.url, {
-        attribution: CAPAS.calles.attribution,
-        maxZoom: 19,
-      }).addTo(mapa);
+      mapa.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
 
       mapaRef.current = mapa;
 
@@ -134,24 +182,15 @@ export default function MapaEnVivo() {
   }, []);
 
   // -------------------------------------------------------------------------
-  // Cambiar entre Calles y Satelital
+  // Cambiar de capa (Calles / Satelital / Híbrido)
+  // Los marcadores NO se borran al cambiar de estilo (son overlays HTML).
   // -------------------------------------------------------------------------
-  function cambiarVista(nueva: 'calles' | 'satelital') {
-    const L = LRef.current;
+  function cambiarVista(nueva: Vista) {
     const mapa = mapaRef.current;
-    if (!L || !mapa) return;
-
-    // Sacamos la capa actual y ponemos la nueva
-    if (capaFondoRef.current) {
-      mapa.removeLayer(capaFondoRef.current);
-    }
-    capaFondoRef.current = L.tileLayer(CAPAS[nueva].url, {
-      attribution: CAPAS[nueva].attribution,
-      maxZoom: 19,
-    }).addTo(mapa);
-
-    // La capa de fondo va atrás de los marcadores
-    capaFondoRef.current.bringToBack();
+    if (!mapa) return;
+    if (nueva === 'calles') mapa.setStyle(ESTILO_CALLES);
+    else if (nueva === 'satelital') mapa.setStyle(estiloSatelital(false) as any);
+    else mapa.setStyle(estiloSatelital(true) as any);
     setVista(nueva);
   }
 
@@ -159,15 +198,10 @@ export default function MapaEnVivo() {
   // 2) Traer la última posición de cada vehículo
   // -------------------------------------------------------------------------
   async function cargarPosicionesIniciales() {
-    // Solo las posiciones de NUESTRA empresa (los clientes se ven en Servicio)
     const miEmpresa = await getMiCompanyId();
     if (!miEmpresa) return;
 
-    // OPTIMIZACIÓN: antes esto iba en FILA (una consulta atrás de otra) y usaba
-    // un JOIN pesado con vehicles. Ahora:
-    //  - Traemos posiciones y vehículos EN PARALELO (salen juntas, no en fila).
-    //  - SIN el join: las posiciones vienen "peladas" (rápido) y los nombres/íconos
-    //    los sacamos de la tabla vehicles por separado (chica, rapidísima).
+    // Posiciones y vehículos EN PARALELO, SIN join (rápido).
     const [posRes, vehRes] = await Promise.all([
       supabase
         .from('locations')
@@ -183,13 +217,11 @@ export default function MapaEnVivo() {
 
     if (posRes.error || !posRes.data) return;
 
-    // Diccionario nombre/ícono por vehículo (de la tabla vehicles)
     const infoVeh: { [id: string]: { nombre: string; icono: string } } = {};
     for (const v of (vehRes.data as any[]) || []) {
       infoVeh[v.id] = { nombre: v.nombre ?? 'Vehículo', icono: v.icono ?? 'auto' };
     }
 
-    // Nos quedamos con la última posición de cada vehículo
     const ultimaPorVehiculo: { [id: string]: Posicion } = {};
     for (const fila of posRes.data as any[]) {
       const vid = fila.vehicle_id;
@@ -212,8 +244,7 @@ export default function MapaEnVivo() {
     setVehiculos(lista);
     lista.forEach(dibujarOActualizarMarcador);
 
-    // El chequeo de plan premium (seguimiento en vivo) va DESPUÉS de dibujar el
-    // mapa, para no demorar lo que el usuario ve. Solo afecta la animación suave.
+    // Chequeo de plan premium (seguimiento en vivo) DESPUÉS de dibujar.
     try {
       const { data: emp } = await supabase
         .from('companies')
@@ -235,44 +266,64 @@ export default function MapaEnVivo() {
     }
   }
 
-  // Devuelve la imagen del vehículo según su tipo de ícono.
-  // Las imágenes están en public/iconos/ (auto.png, camioneta.png, camion.png, moto.png)
+  // Imagen del vehículo según su tipo de ícono (public/iconos/*.png)
   function imgIcono(tipo: string): string {
     const validos = ['auto', 'camioneta', 'camion', 'moto'];
     const t = validos.includes(tipo) ? tipo : 'auto';
     return `<img src="/iconos/${t}.png" style="width:20px;height:20px;display:block;" />`;
   }
 
-  // Mueve el marcador SUAVEMENTE de su posición actual a la nueva (efecto Google Maps).
-  // En vez de saltar, se desliza en ~1.5 segundos. Solo se usa para clientes premium.
-  function deslizarMarcador(marcador: any, destinoLat: number, destinoLon: number, vehicleId: string) {
-    const inicio = marcador.getLatLng();
+  // HTML del puntito del vehículo (círculo verde/rojo con el ícono)
+  function htmlMarcador(p: Posicion, online: boolean): string {
+    const color = online ? '#22d97a' : '#ff4d5e';
+    const glow = online ? 'rgba(34,217,122,0.35)' : 'rgba(255,77,94,0.30)';
+    return `<div style="
+      width:34px;height:34px;border-radius:50%;
+      background:${color};border:3px solid #fff;
+      box-shadow:0 0 0 4px ${glow}, 0 2px 8px rgba(0,0,0,0.4);
+      display:flex;align-items:center;justify-content:center;cursor:pointer;
+    ">${imgIcono(p.icono ?? 'auto')}</div>`;
+  }
+
+  function htmlPopup(p: Posicion): string {
+    const bateriaTxt = p.bateria != null ? `${p.bateria}%` : '—';
+    return `
+      <div style="font-family:system-ui;min-width:160px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px">${p.nombre}</div>
+        <div style="font-size:12px;color:#555">
+          Velocidad: <b>${Math.round(p.velocidad)} km/h</b><br/>
+          Batería: <b>${bateriaTxt}</b><br/>
+          Última: <b>${new Date(p.fecha_gps).toLocaleTimeString('es-AR', { hour12: false })}</b>
+        </div>
+      </div>`;
+  }
+
+  // Mueve el marcador SUAVEMENTE (efecto Google Maps). Solo clientes premium.
+  function deslizarMarcador(marker: any, destinoLat: number, destinoLon: number, vehicleId: string) {
+    const inicio = marker.getLngLat(); // {lng, lat}
     const latIni = inicio.lat;
     const lonIni = inicio.lng;
     const dLat = destinoLat - latIni;
     const dLon = destinoLon - lonIni;
 
-    // Si casi no se movió, lo ponemos directo (no vale la pena animar)
     if (Math.abs(dLat) < 0.000001 && Math.abs(dLon) < 0.000001) {
-      marcador.setLatLng([destinoLat, destinoLon]);
+      marker.setLngLat([destinoLon, destinoLat]);
       return;
     }
 
-    // Cancelamos cualquier animación anterior de este vehículo
     if (animacionesRef.current[vehicleId]) {
       cancelAnimationFrame(animacionesRef.current[vehicleId]);
     }
 
-    const DURACION = 1500; // milisegundos que tarda en deslizarse
+    const DURACION = 1500;
     const t0 = performance.now();
 
     function paso(ahora: number) {
-      let p = (ahora - t0) / DURACION;
-      if (p > 1) p = 1;
-      // Suavizado (easing): arranca y termina suave, no constante
-      const suave = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
-      marcador.setLatLng([latIni + dLat * suave, lonIni + dLon * suave]);
-      if (p < 1) {
+      let pr = (ahora - t0) / DURACION;
+      if (pr > 1) pr = 1;
+      const suave = pr < 0.5 ? 2 * pr * pr : 1 - Math.pow(-2 * pr + 2, 2) / 2;
+      marker.setLngLat([lonIni + dLon * suave, latIni + dLat * suave]);
+      if (pr < 1) {
         animacionesRef.current[vehicleId] = requestAnimationFrame(paso);
       }
     }
@@ -283,56 +334,32 @@ export default function MapaEnVivo() {
   // 3) Dibujar o mover el marcador de un vehículo
   // -------------------------------------------------------------------------
   function dibujarOActualizarMarcador(p: Posicion) {
-    const L = LRef.current;
+    const maplibregl = mlRef.current;
     const mapa = mapaRef.current;
-    if (!L || !mapa) return;
+    if (!maplibregl || !mapa) return;
 
-    // ¿Está online? Si la última posición es de hace menos de 5 minutos, sí.
     const minutosDesde = (Date.now() - new Date(p.fecha_gps).getTime()) / 60000;
     const online = minutosDesde < 5;
-    const colorCirculo = online ? '#22d97a' : '#ff4d5e'; // verde / rojo
-    const glow = online ? 'rgba(34,217,122,0.35)' : 'rgba(255,77,94,0.30)';
 
-    const icono = L.divIcon({
-      className: '',
-      html: `
-        <div style="
-          width:34px;height:34px;border-radius:50%;
-          background:${colorCirculo};border:3px solid #fff;
-          box-shadow:0 0 0 4px ${glow}, 0 2px 8px rgba(0,0,0,0.4);
-          display:flex;align-items:center;justify-content:center;
-        ">${imgIcono(p.icono ?? 'auto')}</div>`,
-      iconSize: [34, 34],
-      iconAnchor: [17, 17],
-    });
-
-    const bateriaTxt = p.bateria != null ? `${p.bateria}%` : '—';
-    const popup = `
-      <div style="font-family:system-ui;min-width:160px">
-        <div style="font-weight:700;font-size:14px;margin-bottom:4px">${p.nombre}</div>
-        <div style="font-size:12px;color:#555">
-          Velocidad: <b>${Math.round(p.velocidad)} km/h</b><br/>
-          Batería: <b>${bateriaTxt}</b><br/>
-          Última: <b>${new Date(p.fecha_gps).toLocaleTimeString('es-AR', { hour12: false })}</b>
-        </div>
-      </div>`;
-
-    const existente = marcadoresRef.current[p.vehicle_id];
-    if (existente) {
-      // Si el cliente es premium (seguimiento en vivo), el marcador se DESLIZA suave.
-      // Si no, salta directo a la posición nueva (como siempre).
+    const reg = marcadoresRef.current[p.vehicle_id];
+    if (reg) {
+      // Mover
       if (seguimientoVivoRef.current) {
-        deslizarMarcador(existente, p.latitud, p.longitud, p.vehicle_id);
+        deslizarMarcador(reg.marker, p.latitud, p.longitud, p.vehicle_id);
       } else {
-        existente.setLatLng([p.latitud, p.longitud]);
+        reg.marker.setLngLat([p.longitud, p.latitud]);
       }
-      existente.setPopupContent(popup);
-      existente.setIcon(icono);
+      reg.el.innerHTML = htmlMarcador(p, online);
+      reg.popup.setHTML(htmlPopup(p));
     } else {
-      const marcador = L.marker([p.latitud, p.longitud], { icon: icono })
-        .addTo(mapa)
-        .bindPopup(popup);
-      marcadoresRef.current[p.vehicle_id] = marcador;
+      const el = document.createElement('div');
+      el.innerHTML = htmlMarcador(p, online);
+      const popup = new maplibregl.Popup({ offset: 20, closeButton: true }).setHTML(htmlPopup(p));
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([p.longitud, p.latitud])
+        .setPopup(popup)
+        .addTo(mapa);
+      marcadoresRef.current[p.vehicle_id] = { marker, popup, el };
     }
   }
 
@@ -348,15 +375,14 @@ export default function MapaEnVivo() {
         async (payload) => {
           const nueva = payload.new as any;
 
-          // Solo procesamos posiciones de NUESTRA empresa
           const miEmpresa = await getMiCompanyId();
           if (nueva.company_id !== miEmpresa) return;
 
           const { data: veh } = await supabase
             .from('vehicles')
-            .select('nombre')
+            .select('nombre, icono')
             .eq('id', nueva.vehicle_id)
-            .single();
+            .maybeSingle();
 
           const p: Posicion = {
             vehicle_id: nueva.vehicle_id,
@@ -366,6 +392,7 @@ export default function MapaEnVivo() {
             velocidad: nueva.velocidad ?? 0,
             bateria: nueva.bateria,
             fecha_gps: nueva.fecha_gps,
+            icono: (veh as any)?.icono ?? 'auto',
           };
 
           dibujarOActualizarMarcador(p);
@@ -383,6 +410,25 @@ export default function MapaEnVivo() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Centrar el mapa en un vehículo y abrir su popup
+  function irAVehiculo(v: Posicion, zoom: number) {
+    const reg = marcadoresRef.current[v.vehicle_id];
+    const mapa = mapaRef.current;
+    if (!reg || !mapa) return;
+    mapa.flyTo({ center: [v.longitud, v.latitud], zoom });
+    if (!reg.popup.isOpen()) reg.marker.togglePopup();
+  }
+
+  // Estilo de cada botón del selector de capa
+  function btnCapa(activo: boolean): React.CSSProperties {
+    return {
+      padding: '7px 13px', borderRadius: '7px', border: 'none', fontSize: '13px',
+      fontWeight: 600, cursor: 'pointer',
+      background: activo ? 'var(--azul-electrico)' : 'transparent',
+      color: activo ? '#fff' : 'var(--texto-suave)',
+    };
+  }
 
   // -------------------------------------------------------------------------
   // Render
@@ -412,36 +458,18 @@ export default function MapaEnVivo() {
       }}>
         <div ref={contenedorRef} style={{ width: '100%', height: '100%' }} />
 
-        {/* Selector Calles / Satelital (flota arriba a la DERECHA del mapa,
-            así no se pisa con los controles de zoom que están a la izquierda) */}
+        {/* Selector de capa + pantalla completa (arriba a la derecha) */}
         <div style={{
           position: 'absolute',
           top: pantallaCompleta ? 'calc(env(safe-area-inset-top, 0px) + 12px)' : '12px',
           right: 'calc(env(safe-area-inset-right, 0px) + 12px)', zIndex: 1000,
           display: 'flex', background: 'var(--gris-oscuro)', borderRadius: '10px',
-          padding: '4px', border: '1px solid var(--gris-borde)', gap: '4px',
-          boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
+          padding: '4px', border: '1px solid var(--gris-borde)', gap: '3px',
+          boxShadow: '0 4px 14px rgba(0,0,0,0.4)', flexWrap: 'wrap',
         }}>
-          <button
-            onClick={() => cambiarVista('calles')}
-            style={{
-              padding: '7px 14px', borderRadius: '7px', border: 'none', fontSize: '13px',
-              fontWeight: 600, background: vista === 'calles' ? 'var(--azul-electrico)' : 'transparent',
-              color: vista === 'calles' ? '#fff' : 'var(--texto-suave)',
-            }}
-          >
-            Calles
-          </button>
-          <button
-            onClick={() => cambiarVista('satelital')}
-            style={{
-              padding: '7px 14px', borderRadius: '7px', border: 'none', fontSize: '13px',
-              fontWeight: 600, background: vista === 'satelital' ? 'var(--azul-electrico)' : 'transparent',
-              color: vista === 'satelital' ? '#fff' : 'var(--texto-suave)',
-            }}
-          >
-            Satelital
-          </button>
+          <button onClick={() => cambiarVista('calles')} style={btnCapa(vista === 'calles')}>Calles</button>
+          <button onClick={() => cambiarVista('satelital')} style={btnCapa(vista === 'satelital')}>Satelital</button>
+          <button onClick={() => cambiarVista('hibrido')} style={btnCapa(vista === 'hibrido')}>Híbrido</button>
 
           <div style={{ width: '1px', background: 'var(--gris-borde)', margin: '3px 2px' }} />
 
@@ -450,7 +478,8 @@ export default function MapaEnVivo() {
             title={pantallaCompleta ? 'Salir de pantalla completa (ESC)' : 'Pantalla completa'}
             style={{
               padding: '7px 12px', borderRadius: '7px', border: 'none', fontSize: '13px',
-              fontWeight: 600, background: pantallaCompleta ? 'var(--azul-electrico)' : 'transparent',
+              fontWeight: 600, cursor: 'pointer',
+              background: pantallaCompleta ? 'var(--azul-electrico)' : 'transparent',
               color: pantallaCompleta ? '#fff' : 'var(--texto-suave)',
               display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap',
             }}
@@ -469,9 +498,7 @@ export default function MapaEnVivo() {
           </div>
         )}
 
-        {/* En pantalla completa: barra de vehículos ABAJO de todo, colapsable.
-            Se despliega hacia arriba. Va abajo para no pisarse con el botón de
-            menú (arriba izq.) ni con los controles (arriba der.). */}
+        {/* En pantalla completa: barra de vehículos ABAJO, colapsable */}
         {pantallaCompleta && (
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1000,
@@ -479,7 +506,6 @@ export default function MapaEnVivo() {
             background: 'var(--gris-oscuro)', borderTop: '1px solid var(--gris-borde)',
             boxShadow: '0 -4px 14px rgba(0,0,0,0.4)',
           }}>
-            {/* La lista aparece ARRIBA del botón cuando está desplegada */}
             {listaAbierta && (
               <div style={{
                 maxHeight: '45vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
@@ -493,13 +519,7 @@ export default function MapaEnVivo() {
                 {vehiculos.map((v) => (
                   <div
                     key={v.vehicle_id}
-                    onClick={() => {
-                      const m = marcadoresRef.current[v.vehicle_id];
-                      if (m && mapaRef.current) {
-                        mapaRef.current.setView([v.latitud, v.longitud], 15);
-                        m.openPopup();
-                      }
-                    }}
+                    onClick={() => irAVehiculo(v, 15)}
                     style={{
                       padding: '10px 12px', borderRadius: '8px', background: 'var(--gris-medio)',
                       cursor: 'pointer',
@@ -517,7 +537,6 @@ export default function MapaEnVivo() {
               </div>
             )}
 
-            {/* La barra/botón siempre visible, abajo de todo (cómodo para el dedo) */}
             <button
               onClick={() => setListaAbierta((v) => !v)}
               style={{
@@ -533,8 +552,7 @@ export default function MapaEnVivo() {
         )}
       </div>
 
-      {/* Panel lateral (en celular: ancho completo, debajo del mapa).
-          En pantalla completa se esconde: usamos la lista flotante del mapa. */}
+      {/* Panel lateral (en celular: ancho completo, debajo del mapa) */}
       <div style={{
         display: pantallaCompleta ? 'none' : 'block',
         width: esCelular ? '100%' : '280px',
@@ -555,13 +573,7 @@ export default function MapaEnVivo() {
         {vehiculos.map((v) => (
           <div
             key={v.vehicle_id}
-            onClick={() => {
-              const m = marcadoresRef.current[v.vehicle_id];
-              if (m && mapaRef.current) {
-                mapaRef.current.setView([v.latitud, v.longitud], 14);
-                m.openPopup();
-              }
-            }}
+            onClick={() => irAVehiculo(v, 14)}
             style={{
               padding: '12px', borderRadius: '10px', background: 'var(--gris-medio)',
               marginBottom: '8px', cursor: 'pointer', border: '1px solid transparent',
