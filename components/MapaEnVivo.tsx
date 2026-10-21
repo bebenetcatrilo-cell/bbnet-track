@@ -45,6 +45,10 @@ function estiloSatelital(conLabels: boolean) {
       type: 'raster',
       tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
       tileSize: 256,
+      // maxzoom = hasta qué nivel Esri tiene fotos. Si el usuario se acerca más,
+      // MapLibre ESTIRA la última foto (overzoom) en vez de mostrar el cartel gris
+      // "Map data not yet available".
+      maxzoom: 19,
       attribution: '© Esri',
     },
   };
@@ -54,6 +58,7 @@ function estiloSatelital(conLabels: boolean) {
       type: 'raster',
       tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}'],
       tileSize: 256,
+      maxzoom: 19,
       attribution: '© Esri',
     };
     layers.push({ id: 'ref', type: 'raster', source: 'esri-ref' });
@@ -159,6 +164,7 @@ export default function MapaEnVivo() {
         style: ESTILO_CALLES,
         center: [-64.29, -36.41], // OJO: MapLibre usa [longitud, latitud]
         zoom: 10,
+        maxZoom: 19, // no dejar acercar más allá de donde el satélite tiene fotos
         attributionControl: { compact: true },
       });
       mapa.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
