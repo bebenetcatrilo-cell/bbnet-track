@@ -6,4 +6,4 @@
 // La versión se ve en el menú, arriba de "Salir".
 // ============================================================================
 
-export const APP_VERSION = 'v1.4.0';
+export const APP_VERSION = 'v1.4.1';
